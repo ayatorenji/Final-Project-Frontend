@@ -152,11 +152,6 @@ const adminlinksList = [
     link: "/map",
   },
   {
-    title: "Handbook",
-    icon: "book",
-    link: "/handbook",
-  },
-  {
     title: "Logout",
     icon: "logout",
   },
