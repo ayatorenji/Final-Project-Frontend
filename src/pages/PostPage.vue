@@ -70,6 +70,7 @@
           </div>
         </div>
 
+        <!-- Post details -->
         <q-dialog v-model="detailsDialog">
           <q-card class="my-card">
             <q-card-section>
@@ -91,11 +92,15 @@
               </div>
             </q-card-section>
 
-            <q-card-section>
-              <div class="text-h6">{{ currentPost.title }}</div>
-              <div class="q-mt-md">{{ currentPost.description }}</div>
+            <q-card-section class="row items-center justify-between custom-section">
+              <div class="text-h6 col">{{ currentPost.title }}</div>
+              <q-btn v-if="currentPost.user_id == userId" class="mark-adopted" flat label="Mark Adopted" color="green" @click="markAsAdoptedDialog(currentPost)" />
             </q-card-section>
-            <!-- Your buttons like chat and location go here -->
+
+            <q-card-section class="custom-description">
+              <div>{{ currentPost.description }}</div>
+            </q-card-section>
+
             <q-card-actions>
               <q-btn color="green" label="Chat" />
               <q-btn color="green" label="Location" />
@@ -145,6 +150,19 @@
           </q-card>
         </q-dialog>
 
+        <!-- Mark Adopted -->
+        <q-dialog v-model="showConfirmationDialog">
+          <q-card>
+            <q-card-section>
+              Have the stray animals in this post been adopted?
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="Cancel" color="negative" @click="showConfirmationDialog = false" />
+              <q-btn flat label="Confirm" color="green" @click="confirmAdoption" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
 
       </div>
     </q-page-container>
@@ -171,6 +189,8 @@ export default {
       editPostImage: null,
       postToEdit: {},
       postToDelete: null,
+      showConfirmationDialog: false,
+      postToBeMarkedAdopted: null,
       loginUserStore: useLoginUserStore(),
     }
   },
@@ -412,6 +432,39 @@ export default {
           });
         });
     },
+    markAsAdoptedDialog(post) {
+      this.postToBeMarkedAdopted = post;
+      this.showConfirmationDialog = true;
+    },
+    async confirmAdoption() {
+      try {
+        // Make sure you have the post ID to update
+        if (!this.postToBeMarkedAdopted) throw new Error('Post not specified.');
+
+        // Here, you would make an API call to update the adopted status
+        await this.$api.put(`/post/${this.postToBeMarkedAdopted.id}/mark`, {
+          adopted: 1,
+        });
+
+        this.$q.notify({
+          type: 'positive',
+          message: 'The animal has been marked as adopted.',
+        });
+
+        // Close the confirmation dialog
+        this.detailsDialog = false;
+        this.showConfirmationDialog = false;
+
+        // Refresh the posts list
+        await this.getData();
+      } catch (error) {
+        console.error('Error:', error);
+        this.$q.notify({
+          type: 'negative',
+          message: 'Failed to mark as adopted.',
+        });
+      }
+    },
 
   },
   mounted() {
@@ -442,4 +495,19 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.mark-adopted {
+  padding: 4px 0px;
+  margin-left: auto;
+}
+
+.custom-section {
+  margin-bottom: 0; /* Remove the bottom margin from the title section */
+}
+
+.custom-description {
+  padding-top: 0; /* Remove the top padding from the description section */
+  margin-top: 0; /* Remove the top margin to bring it closer to the title */
+}
+
 </style>
