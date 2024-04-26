@@ -16,16 +16,20 @@
 
         <!-- Post Modal -->
         <q-dialog v-model="showPostModal">
-          <q-card style="max-width: 500px">
+          <q-card style="width: 500px; max-height: 650px;">
             <q-card-section class="bg-green text-white">
-              <div class="text-h5">Stray Animal Post
-                <q-btn align="right" icon="close" flat round dense v-close-popup />
+              <div class="text-h5 row items-center justify-between">Stray Animal Post
+                <q-btn icon="close" flat round dense v-close-popup />
               </div>
             </q-card-section>
 
             <q-card-section>
-              <q-img v-if="postImage" :src="postImage" />
-              <q-btn v-else color="green" label="Upload Image" @click="openFileInput" />
+              <div class="text-center q-mb-md">
+                <q-img v-if="postImage" :src="postImage" style="max-width: 200px; max-height: 200px;" />
+              </div>
+              <div class="text-center q-mb-md">
+                <q-btn color="green" label="Upload Image" @click="openFileInput" class="q-mt-md" />
+              </div>
               <input type="file" style="display: none" ref="fileInput" accept="image/*" @change="handleFileUpload" />
             </q-card-section>
 
@@ -81,8 +85,8 @@
                   <div class="q-ml-sm text-h6">{{ currentPost.author }}</div>
                 </div>
                 <div>
-                  <q-btn icon="edit" flat round dense @click="editPost(currentPost)" />
-                  <q-btn icon="delete" flat round dense @click="deletePost(currentPost)" />
+                  <q-btn icon="edit" flat round dense @click="openEditDialog(currentPost)" />
+                  <q-btn icon="delete" flat round dense @click="confirmDelete(currentPost)" />
                 </div>
               </div>
             </q-card-section>
@@ -99,12 +103,57 @@
           </q-card>
         </q-dialog>
 
+        <!-- Edit Post Dialog -->
+        <q-dialog v-model="showEditDialog">
+          <q-card style="width: 500px">
+            <q-card-section class="bg-green text-white">
+              <div class="text-h6 row items-center justify-between">Edit Post
+                <q-btn icon="close" flat round dense v-close-popup />
+              </div>
+            </q-card-section>
+            <q-card-section>
+              <!-- Image preview and upload input -->
+              <div class="text-center q-mb-md">
+                <q-img v-if="editPostImage" :src="editPostImage" style="max-width: 300px; max-height: 300px;" />
+              </div>
+              <div class="text-center q-mb-md">
+                <q-btn color="green" label="Upload Image" @click="openEditFileInput" class="q-mt-md" />
+                <!-- Remove hidden attribute and use styles to hide the input -->
+                <input type="file" ref="editFileInput" accept="image/*" @change="handleEditFileUpload" style="display: none;" />
+              </div>
+              <q-input v-model="postToEdit.title" label="Animal's Name" />
+              <q-input v-model="postToEdit.description" label="Description" type="textarea" />
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn label="Cancel" color="black" flat @click="showEditDialog = false" />
+              <q-btn label="Save" color="green" @click="editPost" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Delete Confirmation Dialog -->
+        <q-dialog v-model="showDeleteConfirmDialog">
+          <q-card>
+            <q-card-section class="row items-center">
+              <q-avatar icon="warning" color="amber" text-color="white" />
+              <span class="q-ml-sm">Are you sure you want to delete this post?</span>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn label="Cancel" color="black" flat @click="showDeleteConfirmDialog = false" />
+              <q-btn label="Yes, Delete" color="negative" @click="deletePost" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+
       </div>
     </q-page-container>
   </q-layout>
 </template>
 
 <script>
+const BASE_IMAGE_URL = 'http://localhost:3000/assets/';
+import { useLoginUserStore } from "../stores/loginUserStore";
 export default {
   data() {
     return {
@@ -116,70 +165,248 @@ export default {
       description: '',
       searchTerm: '',
       posts: [],
+      showEditDialog: false,
+      showDeleteConfirmDialog: false,
+      editPostImageFile: null,
+      editPostImage: null,
+      postToEdit: {},
+      postToDelete: null,
+      loginUserStore: useLoginUserStore(),
     }
   },
   computed: {
     filteredPosts() {
       return this.posts.filter((post) => {
         const searchTermLower = this.searchTerm.toLowerCase()
-        return (
-          post.title.toLowerCase().includes(searchTermLower) ||
-          post.description.toLowerCase().includes(searchTermLower) ||
-          post.author.toLowerCase().includes(searchTermLower)
-        )
+        return post.adopted === 0 && // Add this line to check for non-adopted animals
+        (post.title.toLowerCase().includes(searchTermLower) ||
+        post.description.toLowerCase().includes(searchTermLower) ||
+        post.author.toLowerCase().includes(searchTermLower));
       })
+    },
+    userId() {
+      return this.loginUserStore.userid;
     },
   },
   methods: {
     openFileInput() {
       this.$refs.fileInput.click()
     },
+    openEditFileInput() {
+      this.$refs.editFileInput.click();
+    },
     handleFileUpload(event) {
-      const file = event.target.files[0]
-      this.postImage = URL.createObjectURL(file)
+      this.postImageFile = event.target.files[0];
+      this.postImage = URL.createObjectURL(this.postImageFile);
+    },
+    handleEditFileUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        this.editPostImageFile = file;
+        this.editPostImage = URL.createObjectURL(file);
+      }
     },
     showDetails(post) {
       this.currentPost = post;
       this.detailsDialog = true;
     },
-    submitPost() {
-      // Create a new post object
-      const newPost = {
-        id: Date.now(), // Using current timestamp as a unique ID
-        author: 'Chayanon Rodkeaw', // Replace with actual user data
-        title: this.animalName,
-        description: this.description,
-        image: this.postImage,
+    async submitPost() {
+      try {
+        if (!this.postImageFile) {
+          throw new Error('Please upload an image.');
+        }
+
+        // Set up FormData to send the file
+        const formData = new FormData();
+        formData.append('singlefile', this.postImageFile);
+
+        // Post the image file to your backend
+        const fileResponse = await this.$api.post('/file/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+        });
+
+        // Verify that the file upload response is as expected
+        if (!fileResponse.data.uploadFileName) {
+          throw new Error('File upload did not return a filename.');
+        }
+
+        const imageUrl = `${BASE_IMAGE_URL}${fileResponse.data.uploadFileName}`;
+        // Now that the file is uploaded, submit the new post with the returned file name
+        const postResponse = await this.$api.post('/post/', {
+          title: this.animalName,
+          description: this.description,
+          image: imageUrl, // This should be the path to access the image
+          user_id: this.userId, // You need to have the user's id
+        });
+
+        this.$q.notify({
+          type: 'positive',
+          message: 'Post successfully.'
+        });
+
+        // Refresh the list after submitting
+        await this.getData();
+
+        // Reset the form and close the modal
+        this.closePostModal();
+      } catch (error) {
+        console.error('Error:', error.response ? error.response.data : error.message);
+        this.$q.notify({
+          type: 'negative',
+          message: error.message || 'Failed to create post.'
+        });
       }
-
-      // Add the new post to the posts array
-      this.posts.unshift(newPost)
-
-      // Reset the form fields
-      this.showPostModal = false
-      this.postImage = null
-      this.animalName = ''
-      this.description = ''
     },
-    getData() {
-      this.$api.get('/post/all')
-        .then((response) => {
-          console.log(response.data);
-          this.posts = response.data.map((post) => ({
-            id: post.id,
+    closePostModal() {
+      this.showPostModal = false;
+      this.postImageFile = null;
+      this.postImage = '';
+      this.animalName = '';
+      this.description = '';
+      // Reset the file input if needed
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = '';
+      }
+    },
+    async getData() {
+      try {
+        const response = await this.$api.get('/post/all');
+        this.posts = response.data
+          .map(post => ({
+            ...post,
             author: post.author || 'Unknown',
-            title: post.title,
             description: post.description || 'No description',
-            image: post.image,
-            created_at: post.created_at,
-            updated_at: post.updated_at,
-            adopted: post.adopted,
-          }));
+            image: post.image && !post.image.startsWith('http') ? `${BASE_IMAGE_URL}${post.image}` : post.image
+          }))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by latest
+      } catch (error) {
+        this.$q.notify({
+          type: 'negative',
+          message: 'Error fetching posts: ' + error.message
+        });
+      }
+    },
+    openEditDialog(post) {
+      this.postToEdit = { ...post }; // Make a copy to avoid mutating the original post
+      this.editPostImage = post.image;
+      this.showEditDialog = true;
+    },
+
+    confirmDelete(post) {
+      this.postToDeleteId = post.id;
+      this.showDeleteConfirmDialog = true;
+    },
+
+    async editPost() {
+      if (!this.postToEdit.id) {
+        this.$q.notify({
+          type: 'negative',
+          message: 'Post ID is not available.'
+        });
+        return;
+      }
+      try {
+        // Check if a new image file has been selected
+        if (this.editPostImageFile) {
+          // Upload the new image first
+          const formData = new FormData();
+          formData.append('singlefile', this.editPostImageFile);
+
+          const fileResponse = await this.$api.post('/file/upload', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            },
+          });
+
+          // Get the new image URL
+          const newImageUrl = `${BASE_IMAGE_URL}${fileResponse.data.uploadFileName}`;
+          // Update the postToEdit with the new image URL
+          this.postToEdit.image = newImageUrl;
+        }
+
+        // Update the post details, using Vue.set for reactivity
+        const dataToUpdate = {
+          title: this.postToEdit.title,
+          description: this.postToEdit.description,
+          image: this.postToEdit.image,
+        };
+
+        await this.$api.put(`/post/${this.postToEdit.id}`, dataToUpdate);
+
+        // Post was updated successfully
+        this.$q.notify({
+          type: 'positive',
+          message: 'Post updated successfully.'
+        });
+        this.detailsDialog = false;
+        this.showEditDialog = false;
+        await this.getData(); // Refresh the list
+      } catch (error) {
+        // Handle errors here
+        console.error('Error:', error);
+        this.$q.notify({
+          type: 'negative',
+          message: 'Failed to update post.'
+        });
+      }
+    },
+
+    updatePostWithNewImage() {
+      // Proceed to call your API to update the post details
+      const dataToUpdate = {
+        title: this.postToEdit.title,
+        description: this.postToEdit.description,
+        image: this.postToEdit.image,
+      };
+
+      this.$api.put(`/post/${this.postToEdit.id}`, dataToUpdate)
+        .then(() => {
+          // Post was updated successfully
+          this.$q.notify({
+            type: 'positive',
+            message: 'Post updated successfully.'
+          });
+          this.showEditDialog = false;
+          this.getData(); // Refresh the list
         })
-        .catch((error) => {
+        .catch(error => {
+          // Handle errors here
+          console.error('Error updating post:', error);
           this.$q.notify({
             type: 'negative',
-            message: 'Error fetching posts: ' + error.message
+            message: 'Failed to update post.'
+          });
+        });
+    },
+
+    deletePost() {
+      // Check if we have a valid post ID
+      if (!this.postToDeleteId) {
+        this.$q.notify({
+          type: 'negative',
+          message: 'Post ID is not available.'
+        });
+        return;
+      }
+
+      // Perform the API call to delete the post
+      this.$api.delete(`/post/${this.postToDeleteId}`)
+        .then(() => {
+          this.$q.notify({
+            type: 'positive',
+            message: 'Post deleted successfully.'
+          });
+          this.detailsDialog = false;
+          this.showDeleteConfirmDialog = false; // Hide the confirmation dialog
+          this.postToDeleteId = null; // Reset the postToDeleteId
+          this.getData(); // Refresh the list
+        }).catch((error) => {
+          console.error('Error:', error);
+          this.$q.notify({
+            type: 'negative',
+            message: 'Failed to delete post.'
           });
         });
     },
