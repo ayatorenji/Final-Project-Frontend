@@ -84,7 +84,7 @@
                   </q-avatar>
                   <div class="q-ml-sm text-h6">{{ currentPost.author }}</div>
                 </div>
-                <div>
+                <div v-if="currentPost.user_id == userId">
                   <q-btn icon="edit" flat round dense @click="openEditDialog(currentPost)" />
                   <q-btn icon="delete" flat round dense @click="confirmDelete(currentPost)" />
                 </div>
@@ -207,6 +207,7 @@ export default {
       }
     },
     showDetails(post) {
+      console.log('Post user ID:', post.user_id, 'Logged-in user ID:', this.userId);
       this.currentPost = post;
       this.detailsDialog = true;
     },
@@ -278,7 +279,8 @@ export default {
             ...post,
             author: post.author || 'Unknown',
             description: post.description || 'No description',
-            image: post.image && !post.image.startsWith('http') ? `${BASE_IMAGE_URL}${post.image}` : post.image
+            image: post.image && !post.image.startsWith('http') ? `${BASE_IMAGE_URL}${post.image}` : post.image,
+            user_id: post.user_id,
           }))
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by latest
       } catch (error) {
