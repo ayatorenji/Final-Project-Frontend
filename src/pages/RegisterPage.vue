@@ -207,12 +207,14 @@ export default defineComponent({
             this.storeLogUser.fullname = response.data.fullname;
             this.storeLogUser.username = response.data.username;
             this.storeLogUser.accessToken = response.data.accessToken;
-            this.storeLogUser.userType = response.data.userType;
+            this.storeLogUser.userType = 'user'
             if(response.data.img != null){
               this.storeLogUser.avatar = this.$RESTAPI + "/file/" + response.data.img;
             } else{
               this.storeLogUser.avatar = "default-avatar.png";
             }
+
+            this.storeLogUser.img = response.data.img
 
             Notify.create({
               color: 'positive',

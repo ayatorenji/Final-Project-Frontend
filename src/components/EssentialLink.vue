@@ -1,6 +1,6 @@
 <template>
   <div v-if="title != 'Logout'">
-    <q-item clickable tag="a" target="_self" :href="link">
+    <q-item clickable tag="a" target="_self" :href="link" >
       <q-item-section v-if="icon" avatar>
         <q-icon :name="icon" />
       </q-item-section>
@@ -11,10 +11,10 @@
       </q-item-section>
     </q-item>
   </div>
-  <div v-else>
+  <div v-else  @click.prevent="onClick">
     <q-item tag="a" target="_self" :href="link">
       <q-item-section v-if="icon" avatar>
-        <q-btn icon="logout" @click="onClick" />
+        <q-icon :name="icon" />
       </q-item-section>
 
       <q-item-section>
@@ -72,7 +72,9 @@ export default defineComponent({
           type: "info",
           message: "Logout successfully",
         });
-        this.$router.push("/");
+        this.$router.push("/").catch(err => {
+          console.error('Router push error:', err);
+        });
       }
     },
   },

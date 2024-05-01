@@ -3,7 +3,7 @@
     <q-page-container>
       <div class="q-pa-md">
         <div class="row justify-between q-mb-md">
-          <q-btn color="green" label="Post" @click="showPostModal = true" />
+          <q-btn color="green" label="Post" @click="handlePostButtonClick " />
           <q-input
             outlined
             dense
@@ -11,7 +11,16 @@
             class="col-8"
             v-model="searchTerm"
           />
-          <q-btn color="green" label="Sort" />
+          <q-btn-dropdown color="green" label="Sort">
+            <q-list>
+              <q-item clickable v-close-popup @click="sortPosts('newest')">
+                <q-item-section>Newest</q-item-section>
+              </q-item>
+              <q-item clickable v-close-popup @click="sortPosts('oldest')">
+                <q-item-section>Oldest</q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
         </div>
 
         <!-- Post Modal -->
@@ -58,7 +67,7 @@
                 <div class="row no-wrap items-center justify-between">
                   <div class="flex no-wrap items-center">
                     <q-avatar>
-                      <img src="https://cdn.quasar.dev/img/boy-avatar.png" />
+                      <img :src="post.user_img" />
                     </q-avatar>
                     <div class="q-ml-sm text-weight-bold">{{ post.author }}</div>
                   </div>
@@ -75,7 +84,7 @@
           </div>
         </div>
 
-        <q-dialog v-model="detailsDialog">
+        <q-dialog v-model="detailsDialog" no-refocus no-focus>
           <q-card class="my-card">
             <q-card-section>
               <q-img v-if="currentPost.image" :src="currentPost.image" />
@@ -85,7 +94,7 @@
               <div class="row items-center justify-between">
                 <div class="flex no-wrap items-center">
                   <q-avatar>
-                    <img src="https://cdn.quasar.dev/img/boy-avatar.png" />
+                    <img :src="currentPost.user_img" />
                   </q-avatar>
                   <div class="q-ml-sm text-h6">{{ currentPost.author }}</div>
                 </div>
@@ -215,6 +224,13 @@ export default {
         this.editPostImage = URL.createObjectURL(file);
       }
     },
+    sortPosts(order) {
+      if (order === 'newest') {
+        this.posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      } else if (order === 'oldest') {
+        this.posts.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      }
+    },
     showDetails(post) {
       console.log('Post user ID:', post.user_id, 'Logged-in user ID:', this.userId);
       this.currentPost = post;
@@ -269,6 +285,22 @@ export default {
         });
       }
     },
+    handlePostButtonClick() {
+      if (this.loginUserStore.userid) {
+        // If user is logged in, show the post modal
+        this.showPostModal = true;
+      } else {
+        // If user is not logged in, show notification to log in or sign up
+        this.$q.notify({
+          color: 'negative',
+          position: 'top',
+          message: 'You must be logged in to post. Please log in or',
+          actions: [
+            { label: 'Sign Up', color: 'white', handler: () => { this.$router.push('/register'); } }
+          ]
+        });
+      }
+    },
     closePostModal() {
       this.showPostModal = false;
       this.postImageFile = null;
@@ -290,6 +322,7 @@ export default {
             description: post.description || 'No description',
             image: post.image && !post.image.startsWith('http') ? `${BASE_IMAGE_URL}${post.image}` : post.image,
             user_id: post.user_id,
+            user_img: post.user_img && !post.user_img.startsWith('http') ? `${BASE_IMAGE_URL}${post.user_img}` : post.user_img,
           }))
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by latest
       } catch (error) {

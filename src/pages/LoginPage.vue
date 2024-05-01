@@ -105,7 +105,13 @@ export default {
           this.storeLogUser.fullname = res.data.fullname
           this.storeLogUser.username = res.data.username
           this.storeLogUser.accessToken = res.data.accessToken
-          this.storeLogUser.userType = 'user'
+          if(this.storeLogUser.username === 'jay'){
+            this.storeLogUser.userType = 'admin'
+          }
+          else{
+            this.storeLogUser.userType = 'user'
+          }
+          this.storeLogUser.img = res.data.img
           this.$router.push("/dashboard")
         }
       })

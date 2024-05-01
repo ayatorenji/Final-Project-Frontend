@@ -7,6 +7,7 @@ export const useLoginUserStore = defineStore("loginuser", {
     username: useStorage("username", ""),
     accessToken: useStorage("accessToken", ""),
     userType: useStorage("userType", ""),
+    img: useStorage("img", "")
   }),
   getters: {
     getFullname: (state) => {
@@ -24,6 +25,9 @@ export const useLoginUserStore = defineStore("loginuser", {
     getUserType: (state) => {
       return state.userType;
     },
+    getUserImg: (state) => {
+      return state.img
+    },
   },
   actions: {
     clearStorage() {
@@ -31,7 +35,8 @@ export const useLoginUserStore = defineStore("loginuser", {
       this.fullname = "";
       this.username = "";
       this.accessToken = "";
-      this.userType = ""
+      this.userType = "";
+      this.img = "";
     },
     setAdminData(adminData) {
       this.userid = adminData.id;
@@ -39,6 +44,7 @@ export const useLoginUserStore = defineStore("loginuser", {
       this.username = adminData.username;
       this.accessToken = adminData.accessToken;
       this.userType = 'admin';
+      this.img = adminData.img;
     },
   },
 });

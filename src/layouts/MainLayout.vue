@@ -1,7 +1,7 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
-      <q-toolbar>
+      <q-toolbar style="background-color: brown;">
         <q-btn
           flat
           dense
@@ -81,6 +81,7 @@
 </template>
 
 <script>
+const BASE_IMAGE_URL = 'http://localhost:3000/assets/';
 import { defineComponent, ref, computed } from 'vue';
 import EssentialLink from 'components/EssentialLink.vue'
 import { useLoginUserStore } from "../stores/loginUserStore.js";
@@ -95,6 +96,11 @@ const unregislinksList = [
     title: "About Us",
     icon: "badge",
     // link: "/aboutUs",
+  },
+  {
+    title: "Animal's Life",
+    icon: "pets",
+    link: "/pet",
   },
 ];
 
@@ -118,11 +124,6 @@ const userlinksList = [
     title: "Map",
     icon: "location_on",
     link: "/map",
-  },
-  {
-    title: "Handbook",
-    icon: "book",
-    link: "/handbook",
   },
   {
     title: "Logout",
@@ -170,18 +171,18 @@ export default defineComponent({
     const isAdmin = computed(() => storeLogUser.userType === 'admin');
     const usernameDisplay = computed(() => storeLogUser.fullname || 'Guest');
     const getIcon = computed(() => {
-      if (isUser.value) {
-        return 'https://cdn-icons-png.flaticon.com/512/147/147142.png';
-      } else if (isAdmin.value) {
-        return 'https://cdn-icons-png.flaticon.com/512/3781/3781973.png';
-      }
-      return 'https://cdn-icons-png.flaticon.com/512/6596/6596121.png';
+      const imageUrl = storeLogUser.img;
+      return imageUrl && !imageUrl.startsWith('http') ? `${BASE_IMAGE_URL}${imageUrl}` : imageUrl || 'https://cdn-icons-png.flaticon.com/512/6596/6596121.png';
     });
 
     function handleLinkClicked(linkTitle) {
       if(linkTitle === 'Logout') {
-        logout();
+        storeLogUser.logout();
       }
+    }
+
+    function toggleLeftDrawer() {
+      leftDrawerOpen.value = !leftDrawerOpen.value;
     }
 
     return {
@@ -195,9 +196,7 @@ export default defineComponent({
       getIcon,
       leftDrawerOpen,
       handleLinkClicked,
-      toggleLeftDrawer: () => {
-        leftDrawerOpen.value = !leftDrawerOpen.value;
-      },
+      toggleLeftDrawer,
     };
   },
 });
