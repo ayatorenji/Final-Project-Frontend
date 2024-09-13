@@ -3,7 +3,7 @@
     <q-page-container>
       <div class="q-pa-md">
         <div class="row justify-between q-mb-md">
-          <q-btn color="green" label="Post" @click="showPostModal = true" />
+          <q-btn color="green" label="Post" @click="showPostModel = true" />
           <q-input
             outlined
             dense
@@ -24,8 +24,8 @@
         </div>
 
 
-        <!-- Post Modal -->
-        <q-dialog v-model="showPostModal">
+        <!-- Post Model -->
+        <q-dialog v-model="showPostModel">
           <q-card style="width: 500px; max-height: 650px;">
             <q-card-section class="bg-green text-white">
               <div class="text-h5 row items-center justify-between">Stray Animal Post
@@ -50,12 +50,37 @@
               <q-input v-model="description" label="Description" outlined dense type="textarea" />
             </q-card-section>
 
+            <q-card-section>
+              <q-input v-model="locationName" label="Location Name" outlined dense />
+            </q-card-section>
+            <q-card-section>
+              <div class="text-center q-mb-md">
+                <q-btn color="green" label="Mark The Location" @click="openMapModel" class="q-mt-md" />
+              </div>
+            </q-card-section>
+
             <q-card-actions align="right">
               <q-btn color="green" label="Submit" @click="submitPost" />
             </q-card-actions>
           </q-card>
         </q-dialog>
 
+        <!-- Location Model -->
+        <q-dialog v-model="showMapModel" @after-show="initializeMap">
+          <q-card style="width: 500px; height: 500px;">
+            <q-card-section class="bg-green text-white">
+              <div class="text-h5 row items-center justify-between">
+                Mark The Location of Stray Animals
+                <q-btn icon="close" flat round dense @click="showMapModel = false" />
+              </div>
+            </q-card-section>
+            <q-card-section>
+              <div id="map" style="height: 400px;"></div>
+            </q-card-section>
+          </q-card>
+        </q-dialog>
+
+        <!-- Post Display -->
         <div class="row q-col-gutter-md">
           <div
             class="col-12 col-sm-6 col-md-4"
@@ -74,6 +99,9 @@
               </q-card-section>
               <q-card-section class="fixed-height-content">
                 <div class="text-h6">{{ post.title }}</div>
+                <div class="text-body2" v-if="post.locationName" style="font-size: 0.85rem; color: gray;">
+                  {{ post.locationName }}
+                </div>
                 <div class="text-body1 multiline-truncate">{{ post.description }}</div>
               </q-card-section>
             </q-card>
@@ -107,14 +135,57 @@
               <q-btn v-if="currentPost.user_id == userId" class="mark-adopted" flat label="Mark Adopted" color="green" @click="markAsAdoptedDialog(currentPost)" />
             </q-card-section>
 
+            <q-card-section v-if="currentPost.locationName" class="custom-description">
+              <div class="text-body2" style="font-size: 0.85rem; color: gray;">
+                {{ currentPost.locationName }}
+              </div>
+            </q-card-section>
+
             <q-card-section class="custom-description">
               <div>{{ currentPost.description }}</div>
             </q-card-section>
 
             <q-card-actions>
-              <q-btn color="green" label="Chat" />
+              <q-btn color="green" label="Chat" @click="openChatDialog"/>
               <q-btn color="green" label="Location" />
             </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Chat Dialog -->
+        <q-dialog v-model="chatDialog" @hide="resetChatDialog">
+          <q-card style="width: 600px; max-height: 650px;">
+            <q-card-section class="bg-green text-white">
+              <div class="text-h5 row items-center justify-between">
+                Chat with {{ isPostOwner ? 'Select a Chat' : currentPost.author }}
+                <q-btn icon="close" flat round dense v-close-popup @click="closeChatDialog" />
+              </div>
+            </q-card-section>
+
+            <!-- Chat List Section for Post Owner -->
+            <q-card-section v-if="isPostOwner">
+              <q-list>
+                <q-item v-for="chat in chatList" :key="chat.chat_id" clickable @click="openChatMessages(chat.sender_id)">
+                  <q-item-section>{{ chat.sender_name }}</q-item-section>
+                  <q-item-section>{{ chat.message }}</q-item-section>
+                </q-item>
+              </q-list>
+            </q-card-section>
+
+            <!-- Chat Box Section for Other Users -->
+            <q-card-section v-else>
+              <div v-if="chatMessages.length > 0" class="chat-box">
+                <div v-for="message in chatMessages" :key="message.id" class="message">
+                  <div class="message-sender">{{ message.sender_name }}:</div>
+                  <div class="message-text">{{ message.message }}</div>
+                </div>
+              </div>
+              <div v-else>
+                <p>No messages yet.</p>
+              </div>
+              <q-input v-model="newMessage" placeholder="Type a message" @keyup.enter="sendMessage" />
+              <q-btn label="Send" color="green" @click="sendMessage" />
+            </q-card-section>
           </q-card>
         </q-dialog>
 
@@ -138,11 +209,30 @@
               </div>
               <q-input v-model="postToEdit.title" label="Animal's Name" />
               <q-input v-model="postToEdit.description" label="Description" type="textarea" />
+              <q-input v-model="postToEdit.locationName" label="Location Name" />
+              <div class="text-center q-mb-md">
+                <q-btn color="green" label="Mark The Location" @click="openEditMapModel" class="q-mt-md" />
+              </div>
             </q-card-section>
             <q-card-actions align="right">
               <q-btn label="Cancel" color="black" flat @click="showEditDialog = false" />
               <q-btn label="Save" color="green" @click="editPost" />
             </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Edit Map Model -->
+        <q-dialog v-model="showEditMapModel" @after-show="initializeEditMap">
+          <q-card style="width: 500px; height: 500px;">
+            <q-card-section class="bg-green text-white">
+              <div class="text-h5 row items-center justify-between">
+                Edit The Location of Stray Animals
+                <q-btn icon="close" flat round dense @click="showEditMapModel = false" />
+              </div>
+            </q-card-section>
+            <q-card-section>
+              <div id="edit-map" style="height: 400px;"></div>
+            </q-card-section>
           </q-card>
         </q-dialog>
 
@@ -182,17 +272,30 @@
 <script>
 const BASE_IMAGE_URL = 'http://localhost:3000/assets/';
 import { useLoginUserStore } from "../stores/loginUserStore";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 export default {
   data() {
     return {
       currentPost: null,
       detailsDialog: false,
-      showPostModal: false,
+      showPostModel: false,
       postImage: null,
       animalName: '',
       description: '',
+      locationName: '',
+      latitude: null,
+      longitude: null,
+      map: null,
+      marker: null,
+      showMapModel: false,
+      showEditMapModel: false,
       searchTerm: '',
       posts: [],
+      chatDialog: false,
+      chatList: [],
+      chatMessages: [],
+      newMessage: '',
       showEditDialog: false,
       showDeleteConfirmDialog: false,
       editPostImageFile: null,
@@ -217,6 +320,9 @@ export default {
     userId() {
       return this.loginUserStore.userid;
     },
+    isPostOwner() {
+      return this.currentPost.user_id == this.userId;
+    },
   },
   methods: {
     openFileInput() {
@@ -234,6 +340,136 @@ export default {
       if (file) {
         this.editPostImageFile = file;
         this.editPostImage = URL.createObjectURL(file);
+      }
+    },
+    openMapModel() {
+      this.showMapModel = true;
+      this.$nextTick(() => {
+        setTimeout(() => {
+          this.initializeMap();
+        }, 300);
+      });
+    },
+    openEditMapModel() {
+      this.showEditMapModel = true;
+      this.$nextTick(() => {
+        this.initializeEditMap();
+      });
+    },
+    initializeMap() {
+      const mapContainer = document.getElementById("map");
+
+      if (!mapContainer) {
+        console.error("Map container not found. Retrying...");
+        return;
+      }
+
+      // Remove the map instance if it already exists to avoid multiple instances
+      if (this.map) {
+        this.map.remove();
+        this.map = null;
+      }
+
+      // Initialize the map
+      const latitude = this.latitude || 7.8804;
+      const longitude = this.longitude || 98.3923;
+      
+      this.map = L.map(mapContainer).setView([latitude, longitude], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.map);
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            this.latitude = latitude;
+            this.longitude = longitude;
+
+            // Center the map on the user's current location and add a marker
+            this.map.setView([latitude, longitude], 13);
+
+            if (this.marker) {
+              this.marker.addTo(this.map).setLatLng([latitude, longitude]);
+            } else{
+              this.marker = L.marker([latitude, longitude]).addTo(this.map);
+            }
+          },
+          (error) => {
+            console.error("Geolocation error:", error);
+            // Fall back to default location
+            this.map.setView([7.8804, 98.3923], 13);
+          }
+        );
+      }
+      
+      // Add click event to allow users to place a new marker or move the existing marker
+      this.map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        this.latitude = lat;
+        this.longitude = lng;
+
+        // If the marker exists, move it, otherwise create a new one
+        if (this.marker) {
+          this.marker.setLatLng([lat, lng]);
+        } else {
+          this.marker = L.marker([lat, lng]).addTo(this.map);
+        }
+      });
+    },
+    async initializeEditMap() {
+      const mapElement = document.getElementById("edit-map");
+      if (!mapElement) {
+        console.error("Edit map container not found");
+        return;
+      }
+
+      try {
+        // Make an API call to get the post's location by its ID
+        const response = await this.$api.get(`/map-location/${this.postToEdit.id}`);
+        const postLocation = response.data; // Assuming the API returns { latitude, longitude }
+
+        // Use the fetched latitude and longitude, or fall back to default values if not available
+        const latitude = postLocation.latitude || 7.8804;
+        const longitude = postLocation.longitude || 98.3923;
+
+        // Remove the previous map if it exists
+        if (this.postToEdit.map) {
+          this.postToEdit.map.remove();
+          this.postToEdit.map = null;
+        }
+
+        // Initialize a new map centered on the post's location
+        this.postToEdit.map = L.map(mapElement).setView([latitude, longitude], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.postToEdit.map);
+
+        // Place the marker at the post's location or default location
+        if (!this.postToEdit.marker) {
+          this.postToEdit.marker = L.marker([latitude, longitude]).addTo(this.postToEdit.map);
+        } else {
+          this.postToEdit.marker.addTo(this.postToEdit.map).setLatLng([latitude, longitude]);
+        }
+
+        // Allow the user to update the marker by clicking on the map
+        this.postToEdit.map.on('click', (e) => {
+          const { lat, lng } = e.latlng;
+          this.postToEdit.latitude = lat;
+          this.postToEdit.longitude = lng;
+
+          if (this.postToEdit.marker) {
+            this.postToEdit.marker.setLatLng([lat, lng]);
+          } else {
+            this.postToEdit.marker = L.marker([lat, lng]).addTo(this.postToEdit.map);
+          }
+        });
+        
+      } catch (error) {
+        console.error('Error fetching post location:', error);
+        // Fall back to default coordinates in case of error
+        const defaultLat = 7.8804;
+        const defaultLng = 98.3923;
+
+        // Reinitialize map with default location
+        this.postToEdit.map = L.map(mapElement).setView([defaultLat, defaultLng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.postToEdit.map);
       }
     },
     sortPosts(order) {
@@ -279,6 +515,15 @@ export default {
           user_id: this.userId, // Need to have the user's id
         });
 
+        const newPost = postResponse.data;
+
+        await this.$api.post('/map-location/', {
+          post_id: newPost.id,
+          latitude: this.latitude,
+          longitude: this.longitude,
+          description: this.locationName
+        });
+
         this.$q.notify({
           type: 'positive',
           message: 'Post successfully.'
@@ -287,8 +532,8 @@ export default {
         // Refresh the list after submitting
         await this.getData();
 
-        // Reset the form and close the modal
-        this.closePostModal();
+        // Reset the form and close the model
+        this.closePostModel();
       } catch (error) {
         console.error('Error:', error.response ? error.response.data : error.message);
         this.$q.notify({
@@ -297,12 +542,13 @@ export default {
         });
       }
     },
-    closePostModal() {
-      this.showPostModal = false;
+    closePostModel() {
+      this.showPostModel = false;
       this.postImageFile = null;
       this.postImage = '';
       this.animalName = '';
       this.description = '';
+      this.locationName = '';
       // Reset the file input if needed
       if (this.$refs.fileInput) {
         this.$refs.fileInput.value = '';
@@ -312,15 +558,22 @@ export default {
       try {
         const response = await this.$api.get('/post/all');
         this.posts = response.data
-          .map(post => ({
-            ...post,
-            author: post.author || 'Unknown',
-            description: post.description || 'No description',
-            image: post.image && !post.image.startsWith('http') ? `${BASE_IMAGE_URL}${post.image}` : post.image,
-            user_id: post.user_id,
-            user_img: post.user_img && !post.user_img.startsWith('http') ? `${BASE_IMAGE_URL}${post.user_img}` : post.user_img,
-          }))
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by latest
+          .map(async post => {
+            const locationResponse = await this.$api.get(`/map-location/${post.id}`);
+
+            return {
+              ...post,
+              author: post.author || 'Unknown',
+              description: post.description || 'No description',
+              image: post.image && !post.image.startsWith('http') ? `${BASE_IMAGE_URL}${post.image}` : post.image,
+              user_id: post.user_id,
+              user_img: post.user_img && !post.user_img.startsWith('http') ? `${BASE_IMAGE_URL}${post.user_img}` : post.user_img,
+              locationName: locationResponse.data.locationName || '',  // Include the location name from the location API response
+            };
+          });
+
+        this.posts = await Promise.all(this.posts);  // Wait for all location fetches to resolve
+        this.posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by latest
       } catch (error) {
         this.$q.notify({
           type: 'negative',
@@ -374,6 +627,14 @@ export default {
         };
 
         await this.$api.put(`/post/${this.postToEdit.id}`, dataToUpdate);
+
+        const updatedLocation = {
+          latitude: this.postToEdit.latitude || this.latitude,
+          longitude: this.postToEdit.longitude || this.longitude,
+          description: this.postToEdit.locationName || this.locationName
+        };
+
+        await this.$api.put(`/map-location/${this.postToEdit.id}`, updatedLocation);
 
         // Post was updated successfully
         this.$q.notify({
@@ -484,6 +745,68 @@ export default {
       }
     },
 
+    async loadChatList() {
+      try {
+        const response = await this.$api.get(`/chats/post/${this.currentPost.id}`);
+        this.chatList = response.data;
+      } catch (error) {
+        console.error('Error loading chat list:', error);
+      }
+    },
+    async loadChatMessages(senderId, receiverId) {
+      try {
+        const response = await this.$api.get(`/chats/messages/${this.currentPost.id}/${senderId}/${receiverId}`);
+        this.chatMessages = response.data;
+      } catch (error) {
+        console.error('Error loading chat messages:', error);
+      }
+    },
+    async sendMessage() {
+      if (!this.newMessage.trim()) return;
+      try {
+        await this.$api.post('/chats/send', {
+          post_id: this.currentPost.id,
+          sender_id: this.userId,
+          receiver_id: this.currentPost.user_id,
+          message: this.newMessage
+        });
+        this.newMessage = '';
+        this.loadChatMessages(this.userId, this.currentPost.user_id);
+      } catch (error) {
+        console.error('Error sending message:', error.response ? error.response.data : error.message);
+      }
+    },
+    openChatDialog() {
+      this.chatDialog = true;
+      if (this.isPostOwner) {
+        this.loadChatList();
+      } else {
+        this.loadChatMessages(this.userId, this.currentPost.user_id);
+      }
+    },
+    async openChatMessages(senderId) {
+      console.log('Fetching messages for sender ID:', senderId); // Added this line
+      if (this.isPostOwner) {
+        try {
+          const response = await this.$api.get(`/chat/messages/${senderId}`);
+          this.chatMessages = response.data;
+        } catch (error) {
+          console.error('Error fetching chat messages:', error.response ? error.response.data : error.message);
+          this.$q.notify({
+            type: 'negative',
+            message: error.message || 'Failed to fetch chat messages.'
+          });
+        }
+      }
+    },
+    closeChatDialog() {
+      this.chatDialog = false;
+      this.chatMessages = [];
+    },
+    resetChatDialog() {
+      this.chatMessages = [];
+    },
+
   },
   mounted() {
     this.getData();
@@ -508,10 +831,16 @@ export default {
 
 .multiline-truncate {
   display: -webkit-box;
-  -webkit-line-clamp: 2; /* Number of lines you want to display before truncating */
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* Number of lines you want to display before truncating */
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: normal; /* Ensure text wraps */
+}
+
+#map {
+  width: 100%;
+  height: 100%;
 }
 
 .mark-adopted {
@@ -526,5 +855,23 @@ export default {
 .custom-description {
   padding-top: 0; /* Remove the top padding from the description section */
   margin-top: 0; /* Remove the top margin to bring it closer to the title */
+  overflow-y: auto;
+}
+
+.chat-box {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+}
+.message {
+  margin-bottom: 10px;
+}
+.message-sender {
+  font-weight: bold;
+}
+.message-text {
+  margin-left: 10px;
 }
 </style>
