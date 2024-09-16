@@ -1,6 +1,6 @@
 <template>
   <div v-if="title != 'Logout'">
-    <q-item clickable tag="a" target="_self" :href="link" >
+    <q-item clickable @click="this.$router.push(link)" >
       <q-item-section v-if="icon" avatar>
         <q-icon :name="icon" />
       </q-item-section>
@@ -12,7 +12,7 @@
     </q-item>
   </div>
   <div v-else  @click.prevent="onClick">
-    <q-item tag="a" target="_self" :href="link">
+    <q-item clickable @click="this.$router.push(link)">
       <q-item-section v-if="icon" avatar>
         <q-icon :name="icon" />
       </q-item-section>

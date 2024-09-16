@@ -58,7 +58,7 @@
             <div>
               <text-caption class="text-cyan-8">
                 Not registered?
-                <a href="/register">Create an Account</a>
+                <router-link to="/register" class="text-primarys">Create an Account</router-link>
               </text-caption>
             </div>
           </q-form>
