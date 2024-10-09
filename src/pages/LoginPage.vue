@@ -112,7 +112,7 @@ export default {
             this.storeLogUser.userType = 'user'
           }
           this.storeLogUser.img = res.data.img
-          this.$router.push("/dashboard")
+          this.$router.push("/post")
         }
       })
       .catch((err)=>{

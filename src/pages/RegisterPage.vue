@@ -221,7 +221,7 @@ export default defineComponent({
               message: 'Registration successful'
             });
 
-            this.$router.push('/dashboard');
+            this.$router.push('/post');
           } else {
             throw new Error('Invalid response from server');
           }
@@ -244,7 +244,6 @@ export default defineComponent({
       this.password = null;
       this.resetUserCaption();
       this.upload_avatar = null;
-      this.upload_avatar = null;
       this.imageUrl = "";
     },
     resetUserCaption() {
@@ -253,7 +252,7 @@ export default defineComponent({
       this.usernameCaption.icon = null;
       this.usernameCaption.msg = null;
     },
-    usernameValidate() {
+    usernameValidate: _.debounce(function() {
       if (this.username) {
         this.$api
           .get("/auth/" + this.username)
@@ -277,7 +276,7 @@ export default defineComponent({
       } else {
         this.resetUserCaption();
       }
-    },
+    }, 300),
   },
   watch: {
     username() {

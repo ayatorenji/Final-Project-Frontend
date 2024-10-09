@@ -147,13 +147,28 @@
 
             <q-card-actions v-if="currentPost.user_id == userId">
               <q-btn color="green" label="Chat List" @click="openChatDialog"/>
-              <q-btn color="green" label="Location" />
+              <q-btn color="green" label="Location" @click="openLocationDialog(currentPost)"/>
             </q-card-actions>
 
             <q-card-actions v-else>
               <q-btn color="green" label="Chat" @click="openChatDialog"/>
-              <q-btn color="green" label="Location" />
+              <q-btn color="green" label="Location" @click="openLocationDialog(currentPost)"/>
             </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Location Map Dialog -->
+        <q-dialog v-model="showLocationDialog" @after-show="initializePostMap">
+          <q-card style="width: 500px; height: 500px;">
+            <q-card-section class="bg-green text-white">
+              <div class="text-h5 row items-center justify-between">
+                Location of Stray Animal
+                <q-btn icon="close" flat round dense @click="showLocationDialog = false" />
+              </div>
+            </q-card-section>
+            <q-card-section>
+              <div id="post-map" style="height: 400px;"></div>
+            </q-card-section>
           </q-card>
         </q-dialog>
 
@@ -187,10 +202,11 @@
             <q-card-section v-else class="chat-box">
               <div v-if="chatMessages.length > 0">
                 <div v-for="message in chatMessages" :key="message.id" 
-                  :class="{'message-sent': message.sender_id === userId, 'message-received': message.receiver_id === userId}">
+                  :class="{'message-sent': message.sender_id == userId, 'message-received': message.receiver_id == userId}">
                   <div class="message-bubble">
                     <div class="message-sender">{{ message.sender_name }}:</div>
                     <div class="message-text">{{ message.message }}</div>
+                    <div class="message-timestamp">{{ new Date(message.timestamp).toLocaleString() }}</div>
                   </div>
                 </div>
               </div>
@@ -201,7 +217,7 @@
 
             <!-- Chat Input Section -->
             <q-card-section class="chat-input">
-              <q-input v-model="newMessage" placeholder="Type a message" outlined dense @keyup.enter="sendMessage" />
+              <q-input v-model="newMessage" placeholder="Type a message" outlined dense @keyup.enter="sendMessage" class="chat-input-box"/>
               <q-btn label="Send" color="green" @click="sendMessage" />
             </q-card-section>
           </q-card>
@@ -308,6 +324,9 @@ export default {
       marker: null,
       showMapModel: false,
       showEditMapModel: false,
+      showLocationDialog: false,
+      postMap: null,
+      postMarker: null,
       searchTerm: '',
       posts: [],
       chatDialog: false,
@@ -488,6 +507,55 @@ export default {
         // Reinitialize map with default location
         this.postToEdit.map = L.map(mapElement).setView([defaultLat, defaultLng], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.postToEdit.map);
+      }
+    },
+
+    openLocationDialog(post) {
+      this.currentPost = post;
+      this.showLocationDialog = true;
+      this.$nextTick(() => {
+        this.initializePostMap();
+      });
+    },
+    async initializePostMap() {
+      const mapElement = document.getElementById("post-map");
+
+      if (!mapElement) {
+        console.error("Map container not found");
+        return;
+      }
+
+      // Remove any existing map instance
+      if (this.postMap) {
+        this.postMap.remove();
+      }
+
+      try {
+        // Fetch the post's location using the API call, similar to initializeEditMap
+        const response = await this.$api.get(`/map-location/${this.currentPost.id}`);
+        const postLocation = response.data; // Assuming the API returns { latitude, longitude }
+
+        // Ensure latitude and longitude values are available, fallback to default values if not
+        const latitude = postLocation.latitude || 7.8804; // Default latitude (Phuket)
+        const longitude = postLocation.longitude || 98.3923; // Default longitude
+
+        // Initialize the map
+        this.postMap = L.map(mapElement).setView([latitude, longitude], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.postMap);
+
+        // Add a marker to the map at the fetched coordinates
+        if (latitude && longitude) {
+          this.postMarker = L.marker([latitude, longitude]).addTo(this.postMap);
+        }
+      } catch (error) {
+        console.error('Error fetching post location:', error);
+
+        // Fallback to default coordinates if the API call fails
+        const defaultLat = 7.8804;
+        const defaultLng = 98.3923;
+
+        this.postMap = L.map(mapElement).setView([defaultLat, defaultLng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.postMap);
       }
     },
     sortPosts(order) {
@@ -905,6 +973,11 @@ export default {
   display: flex;
   gap: 5px;
   margin-top: 10px;
+  align-items: center;
+}
+
+.chat-input-box {
+  flex-grow: 1;
 }
 
 </style>
