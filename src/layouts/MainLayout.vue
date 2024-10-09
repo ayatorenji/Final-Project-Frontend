@@ -81,7 +81,6 @@
 </template>
 
 <script>
-const BASE_IMAGE_URL = 'http://localhost:3000/assets/';
 import { defineComponent, ref, computed } from 'vue';
 import EssentialLink from 'components/EssentialLink.vue'
 import { useLoginUserStore } from "../stores/loginUserStore.js";
@@ -172,7 +171,7 @@ export default defineComponent({
     const usernameDisplay = computed(() => storeLogUser.fullname || 'Guest');
     const getIcon = computed(() => {
       const imageUrl = storeLogUser.img;
-      return imageUrl && !imageUrl.startsWith('http') ? `${BASE_IMAGE_URL}${imageUrl}` : imageUrl || 'https://cdn-icons-png.flaticon.com/512/6596/6596121.png';
+      return imageUrl || 'https://cdn-icons-png.flaticon.com/512/6596/6596121.png';
     });
 
     function handleLinkClicked(linkTitle) {

@@ -5,7 +5,7 @@
     </div>
     <div class="flex justify-center">
       <q-card class="my-card bg-grey-1 q-px-md q-py-md" style="width: 25rem">
-        <div class="flex flex-center" v-if="isShowIcon">
+        <div class="flex flex-center" v-if="!imageUrl">
           <q-icon name="account_circle" color="grey-6" size="4rem" />
         </div>
         <div v-else>
@@ -119,6 +119,10 @@ import { emailValidate, requiredValidate } from "../utils/validations";
 import { useLoginUserStore } from "../stores/loginUserStore.js";
 import { Notify } from "quasar";
 import debounce from 'lodash/debounce';
+import { storage } from "../firebaseConfig";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Firebase imports
+const BASE_IMAGE_URL = 'https://firebasestorage.googleapis.com/v0/b/final-project-142d2.appspot.com/o/';
+
 export default defineComponent({
   name: "RegisterPage",
   data() {
@@ -144,55 +148,57 @@ export default defineComponent({
     emailValidate,
     requiredValidate,
     onRejected(rejectedEntries) {
-      let msg;
-      if (rejectedEntries[0].failedPropValidation == "accept")
-        msg = "Only images (jpg, jpeg, png) are allowed";
-      else if (rejectedEntries[0].failedPropValidation == "max-file-size")
-        msg = "File size cannot be larger than 1MB";
-      Notify.create({
+      rejectedEntries.forEach(entry => {
+        let msg;
+        if (entry.failedPropValidation == "accept")
+          msg = "Only images (jpg, jpeg, png) are allowed";
+        else if (entry.failedPropValidation == "max-file-size")
+          msg = "File size cannot be larger than 1MB";
+        Notify.create({
           type: "negative",
           message: msg,
+        });
       });
     },
     updateFile() {
       this.isShowIcon = false;
       this.imageUrl = URL.createObjectURL(this.upload_avatar);
     },
-    onSubmit() {
-      if (this.upload_avatar == "")
-        this.upload_avatar = null;
+    async onSubmit() {
+      let avatarUrl = null;
       if (this.upload_avatar) {
-        //call upload file API
-        const headers = {
-          "Content-Type": "multipart/form-data"
+        try {
+          // Firebase file upload
+          const storageRef = ref(storage, `avatars/${Date.now()}-${this.upload_avatar.name}`);
+          const uploadResult = await uploadBytes(storageRef, this.upload_avatar);
+          avatarUrl = await getDownloadURL(uploadResult.ref);
+        } catch (err) {
+          console.error(err);
+          Notify.create({
+            type: "negative",
+            message: "File upload failed.",
+          });
+          return;
         }
-        const formData = new FormData();
-        formData.append("singlefile", this.upload_avatar);
-        this.$api.post("/file/upload", formData, {headers})
-        .then((response)=>{
-          if(response.status == 200){
-            // call user registration API
-            this.submitData(response.data.uploadFileName)
-           }
-        })
-        .catch((err) => {
-            console.log(err);
-            this.showErrorDialog(err);
-        });
-      }else {
-        //not call upload file API
-        // call user registration API
-        this.submitData(null);
       }
+      if (this.upload_avatar && !['image/jpeg', 'image/png', 'image/jpg'].includes(this.upload_avatar.type)) {
+        Notify.create({
+          type: 'negative',
+          message: 'Invalid image type. Only jpg, jpeg, png are allowed.',
+        });
+        return;
+      }
+      // Proceed with user registration after file upload
+      this.submitData(avatarUrl);
     },
 
-    submitData(filename){
+    submitData(avatarUrl){
       const data = {
         fullname: this.fullname,
         email: this.email,
         username: this.username,
         password: this.password,
-        img: filename,
+        img: avatarUrl || "default-avatar.png", // Fallback to default avatar if no upload
       }
       if (!this.usernameCaption.showClass) {
         Notify.create({
@@ -209,13 +215,7 @@ export default defineComponent({
             this.storeLogUser.username = response.data.username;
             this.storeLogUser.accessToken = response.data.accessToken;
             this.storeLogUser.userType = 'user'
-            if(response.data.img != null){
-              this.storeLogUser.avatar = this.$RESTAPI + "/file/" + response.data.img;
-            } else{
-              this.storeLogUser.avatar = "default-avatar.png";
-            }
-
-            this.storeLogUser.img = response.data.img
+            this.storeLogUser.img  = avatarUrl || "default-avatar.png";
 
             Notify.create({
               color: 'positive',

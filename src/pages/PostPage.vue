@@ -97,7 +97,7 @@
                   <div class="q-ml-sm text-weight-bold">{{ post.author }}</div>
                 </div>
               </q-card-section>
-              <q-card-section class="fixed-height-content">
+              <q-card-section>
                 <div class="text-h6">{{ post.title }}</div>
                 <div class="text-body2" v-if="post.locationName" style="font-size: 0.85rem; color: gray;">
                   Found at: {{ post.locationName }}
@@ -303,10 +303,14 @@
 </template>
 
 <script>
-const BASE_IMAGE_URL = 'http://localhost:3000/assets/';
 import { useLoginUserStore } from "../stores/loginUserStore";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Firebase imports
+import { storage } from "../firebaseConfig";
+
+const BASE_IMAGE_URL = 'https://firebasestorage.googleapis.com/v0/b/final-project-142d2.appspot.com/o/';
+
 export default {
   data() {
     return {
@@ -334,6 +338,7 @@ export default {
       newMessage: '',
       showEditDialog: false,
       showDeleteConfirmDialog: false,
+      postImageFile: null,
       editPostImageFile: null,
       editPostImage: null,
       postToEdit: {},
@@ -575,28 +580,28 @@ export default {
           throw new Error('Please upload an image.');
         }
 
-        // Set up FormData to send the file
-        const formData = new FormData();
-        formData.append('singlefile', this.postImageFile);
+        // Upload image to Firebase Storage
+        const fileRef = ref(storage, `posts/${Date.now()}-${this.postImageFile.name}`);
+        await uploadBytes(fileRef, this.postImageFile);
+        const imageUrl = await getDownloadURL(fileRef);
 
-        // Post the image file to your backend
-        const fileResponse = await this.$api.post('/file/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          },
-        });
+        // // Post the image file to your backend
+        // const fileResponse = await this.$api.post('/file/upload', formData, {
+        //   headers: {
+        //     'Content-Type': 'multipart/form-data'
+        //   },
+        // });
 
-        // Verify that the file upload response is as expected
-        if (!fileResponse.data.uploadFileName) {
-          throw new Error('File upload did not return a filename.');
-        }
+        // // Verify that the file upload response is as expected
+        // if (!fileResponse.data.uploadFileName) {
+        //   throw new Error('File upload did not return a filename.');
+        // }
 
-        const imageUrl = `${BASE_IMAGE_URL}${fileResponse.data.uploadFileName}`;
-        // Now that the file is uploaded, submit the new post with the returned file name
+         // Submit the post to the backend
         const postResponse = await this.$api.post('/post/', {
           title: this.animalName,
           description: this.description,
-          image: imageUrl, // This should be the path to access the image
+          image: imageUrl, // Firebase image URL
           user_id: this.userId, // Need to have the user's id
         });
 
@@ -642,15 +647,17 @@ export default {
     async getData() {
       try {
         const response = await this.$api.get('/post/all');
+        console.log('Posts received from backend:', response.data);
         this.posts = response.data
           .map(async post => {
             const locationResponse = await this.$api.get(`/map-location/${post.id}`);
+            const imageUrl = post.image;
 
             return {
               ...post,
               author: post.author || 'Unknown',
               description: post.description || 'No description',
-              image: post.image && !post.image.startsWith('http') ? `${BASE_IMAGE_URL}${post.image}` : post.image,
+              image: imageUrl,
               user_id: post.user_id,
               user_img: post.user_img && !post.user_img.startsWith('http') ? `${BASE_IMAGE_URL}${post.user_img}` : post.user_img,
               locationName: locationResponse.data.locationName || '',  // Include the location name from the location API response
@@ -686,40 +693,34 @@ export default {
         return;
       }
       try {
+        let imageUrl = this.postToEdit.image;
         // Check if a new image file has been selected
         if (this.editPostImageFile) {
           // Upload the new image first
-          const formData = new FormData();
-          formData.append('singlefile', this.editPostImageFile);
-
-          const fileResponse = await this.$api.post('/file/upload', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            },
-          });
-
-          // Get the new image URL
-          const newImageUrl = `${BASE_IMAGE_URL}${fileResponse.data.uploadFileName}`;
-          // Update the postToEdit with the new image URL
-          this.postToEdit.image = newImageUrl;
+          const fileRef = ref(storage, `posts/${Date.now()}-${this.editPostImageFile.name}`);
+          await uploadBytes(fileRef, this.editPostImageFile);
+          imageUrl = await getDownloadURL(fileRef);
         }
 
         // Update the post details, using Vue.set for reactivity
         const dataToUpdate = {
           title: this.postToEdit.title,
           description: this.postToEdit.description,
-          image: this.postToEdit.image,
+          image: imageUrl,
         };
 
         await this.$api.put(`/post/${this.postToEdit.id}`, dataToUpdate);
 
-        const updatedLocation = {
-          latitude: this.postToEdit.latitude || this.latitude,
-          longitude: this.postToEdit.longitude || this.longitude,
-          description: this.postToEdit.locationName || this.locationName
-        };
-
-        await this.$api.put(`/map-location/${this.postToEdit.id}`, updatedLocation);
+        if (this.postToEdit.latitude !== this.latitude || this.postToEdit.longitude !== this.longitude){
+            if (this.latitude && this.longitude) {
+                const updatedLocation = {
+                    latitude: this.latitude,
+                    longitude: this.longitude,
+                    description: this.locationName || this.postToEdit.locationName
+                };
+                await this.$api.put(`/map-location/${this.postToEdit.id}`, updatedLocation);
+            }
+        }
 
         // Post was updated successfully
         this.$q.notify({
@@ -787,7 +788,7 @@ export default {
           this.detailsDialog = false;
           this.showDeleteConfirmDialog = false; // Hide the confirmation dialog
           this.postToDeleteId = null; // Reset the postToDeleteId
-          this.getData(); // Refresh the list
+          this.getData();
         }).catch((error) => {
           console.error('Error:', error);
           this.$q.notify({
@@ -896,16 +897,12 @@ export default {
   height: 250px;
 }
 
-.fixed-height-content {
-  height: 100px;
-}
-
 .multiline-truncate {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2; /* Number of lines you want to display before truncating */
-  overflow: hidden;
-  text-overflow: ellipsis;
+  -webkit-line-clamp: 2; /* Show only 2 lines */
+  overflow: hidden; /* Hide overflow */
+  text-overflow: ellipsis; /* Show ellipsis */
   white-space: normal; /* Ensure text wraps */
 }
 

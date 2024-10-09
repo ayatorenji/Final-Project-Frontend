@@ -44,7 +44,13 @@ export const useLoginUserStore = defineStore("loginuser", {
       this.username = adminData.username;
       this.accessToken = adminData.accessToken;
       this.userType = 'admin';
-      this.img = adminData.img;
+      if (adminData.img && !adminData.img.startsWith('http')) {
+        const encodedImageName = encodeURIComponent(adminData.img); // URL encode the image name
+        this.img = `https://firebasestorage.googleapis.com/v0/b/final-project-142d2.appspot.com/o/${encodedImageName}?alt=media`;
+      } else {
+        // Fallback to a placeholder image
+        this.img = adminData.img || 'https://cdn-icons-png.flaticon.com/512/6596/6596121.png';
+      }
     },
   },
 });

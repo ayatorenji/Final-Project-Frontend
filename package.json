@@ -17,6 +17,7 @@
     "@quasar/extras": "^1.16.4",
     "@vueuse/core": "^10.9.0",
     "axios": "^1.2.1",
+    "firebase": "^10.14.0",
     "leaflet": "^1.9.4",
     "lodash": "^4.17.21",
     "pinia": "^2.0.11",
