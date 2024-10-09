@@ -90,13 +90,13 @@ const unregislinksList = [
   {
     title: "Home",
     icon: "home",
-    link: "/",
+    link: "/mainpage",
   },
-  {
-    title: "About Us",
-    icon: "badge",
-    // link: "/aboutUs",
-  },
+  // {
+  //   title: "About Us",
+  //   icon: "badge",
+  //   // link: "/aboutUs",
+  // },
   {
     title: "Animal's Life",
     icon: "pets",

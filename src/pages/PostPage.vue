@@ -213,12 +213,11 @@
               <div v-else>
                 <p>No messages yet.</p>
               </div>
-            </q-card-section>
 
-            <!-- Chat Input Section -->
-            <q-card-section class="chat-input">
-              <q-input v-model="newMessage" placeholder="Type a message" outlined dense @keyup.enter="sendMessage" class="chat-input-box"/>
-              <q-btn label="Send" color="green" @click="sendMessage" />
+              <q-card-section class="chat-input">
+                <q-input v-model="newMessage" placeholder="Type a message" outlined dense @keyup.enter="sendMessage" class="chat-input-box"/>
+                <q-btn label="Send" color="green" @click="sendMessage" />
+              </q-card-section>
             </q-card-section>
           </q-card>
         </q-dialog>
