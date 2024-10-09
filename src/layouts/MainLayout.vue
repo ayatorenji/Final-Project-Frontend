@@ -90,7 +90,7 @@ const unregislinksList = [
   {
     title: "Home",
     icon: "home",
-    link: "/mainpage",
+    link: "/",
   },
   // {
   //   title: "About Us",
