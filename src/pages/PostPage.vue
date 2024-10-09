@@ -100,7 +100,7 @@
               <q-card-section class="fixed-height-content">
                 <div class="text-h6">{{ post.title }}</div>
                 <div class="text-body2" v-if="post.locationName" style="font-size: 0.85rem; color: gray;">
-                  {{ post.locationName }}
+                  Found at: {{ post.locationName }}
                 </div>
                 <div class="text-body1 multiline-truncate">{{ post.description }}</div>
               </q-card-section>
@@ -145,7 +145,12 @@
               <div>{{ currentPost.description }}</div>
             </q-card-section>
 
-            <q-card-actions>
+            <q-card-actions v-if="currentPost.user_id == userId">
+              <q-btn color="green" label="Chat List" @click="openChatDialog"/>
+              <q-btn color="green" label="Location" />
+            </q-card-actions>
+
+            <q-card-actions v-else>
               <q-btn color="green" label="Chat" @click="openChatDialog"/>
               <q-btn color="green" label="Location" />
             </q-card-actions>
@@ -157,33 +162,46 @@
           <q-card style="width: 600px; max-height: 650px;">
             <q-card-section class="bg-green text-white">
               <div class="text-h5 row items-center justify-between">
-                Chat with {{ isPostOwner ? 'Select a Chat' : currentPost.author }}
+                <q-avatar>
+                    <img :src="currentPost.user_img" />
+                </q-avatar>
+                Chat with {{ currentPost.author }}
                 <q-btn icon="close" flat round dense v-close-popup @click="closeChatDialog" />
               </div>
             </q-card-section>
 
             <!-- Chat List Section for Post Owner -->
-            <q-card-section v-if="isPostOwner">
-              <q-list>
+            <q-card-section v-if="currentPost.user_id == userId">
+              <q-list v-if="chatList.length > 0">
                 <q-item v-for="chat in chatList" :key="chat.chat_id" clickable @click="openChatMessages(chat.sender_id)">
                   <q-item-section>{{ chat.sender_name }}</q-item-section>
                   <q-item-section>{{ chat.message }}</q-item-section>
                 </q-item>
               </q-list>
+              <div v-else class="text-h5 row items-center justify-center">
+                <p>No one has sent a message yet.</p>
+              </div>
             </q-card-section>
 
-            <!-- Chat Box Section for Other Users -->
-            <q-card-section v-else>
-              <div v-if="chatMessages.length > 0" class="chat-box">
-                <div v-for="message in chatMessages" :key="message.id" class="message">
-                  <div class="message-sender">{{ message.sender_name }}:</div>
-                  <div class="message-text">{{ message.message }}</div>
+            <!-- Chat Box Section -->
+            <q-card-section v-else class="chat-box">
+              <div v-if="chatMessages.length > 0">
+                <div v-for="message in chatMessages" :key="message.id" 
+                  :class="{'message-sent': message.sender_id === userId, 'message-received': message.receiver_id === userId}">
+                  <div class="message-bubble">
+                    <div class="message-sender">{{ message.sender_name }}:</div>
+                    <div class="message-text">{{ message.message }}</div>
+                  </div>
                 </div>
               </div>
               <div v-else>
                 <p>No messages yet.</p>
               </div>
-              <q-input v-model="newMessage" placeholder="Type a message" @keyup.enter="sendMessage" />
+            </q-card-section>
+
+            <!-- Chat Input Section -->
+            <q-card-section class="chat-input">
+              <q-input v-model="newMessage" placeholder="Type a message" outlined dense @keyup.enter="sendMessage" />
               <q-btn label="Send" color="green" @click="sendMessage" />
             </q-card-section>
           </q-card>
@@ -320,9 +338,6 @@ export default {
     userId() {
       return this.loginUserStore.userid;
     },
-    isPostOwner() {
-      return this.currentPost.user_id == this.userId;
-    },
   },
   methods: {
     openFileInput() {
@@ -332,8 +347,11 @@ export default {
       this.$refs.editFileInput.click();
     },
     handleFileUpload(event) {
-      this.postImageFile = event.target.files[0];
-      this.postImage = URL.createObjectURL(this.postImageFile);
+      const file = event.target.files[0];
+      if (file) {
+        this.postImageFile = file;
+        this.postImage = URL.createObjectURL(file);
+      }
     },
     handleEditFileUpload(event) {
       const file = event.target.files[0];
@@ -744,6 +762,23 @@ export default {
         });
       }
     },
+    openChatDialog() {
+      this.chatDialog = true;
+      if (this.currentPost.user_id == this.userId) {
+        if (this.chatList.length === 0) {
+          this.loadChatList();
+        }
+      } else {
+        this.loadChatMessages(this.userId, this.currentPost.user_id);
+      }
+    },
+    closeChatDialog() {
+      this.chatDialog = false;
+      this.chatMessages = [];
+    },
+    resetChatDialog() {
+      this.chatMessages = [];
+    },
 
     async loadChatList() {
       try {
@@ -776,37 +811,6 @@ export default {
         console.error('Error sending message:', error.response ? error.response.data : error.message);
       }
     },
-    openChatDialog() {
-      this.chatDialog = true;
-      if (this.isPostOwner) {
-        this.loadChatList();
-      } else {
-        this.loadChatMessages(this.userId, this.currentPost.user_id);
-      }
-    },
-    async openChatMessages(senderId) {
-      console.log('Fetching messages for sender ID:', senderId); // Added this line
-      if (this.isPostOwner) {
-        try {
-          const response = await this.$api.get(`/chat/messages/${senderId}`);
-          this.chatMessages = response.data;
-        } catch (error) {
-          console.error('Error fetching chat messages:', error.response ? error.response.data : error.message);
-          this.$q.notify({
-            type: 'negative',
-            message: error.message || 'Failed to fetch chat messages.'
-          });
-        }
-      }
-    },
-    closeChatDialog() {
-      this.chatDialog = false;
-      this.chatMessages = [];
-    },
-    resetChatDialog() {
-      this.chatMessages = [];
-    },
-
   },
   mounted() {
     this.getData();
@@ -862,16 +866,45 @@ export default {
   max-height: 400px;
   overflow-y: auto;
   padding: 10px;
-  border: 1px solid #ccc;
-  margin-bottom: 10px;
 }
-.message {
-  margin-bottom: 10px;
+
+.message-sent {
+  align-self: flex-end;
+  text-align: right;
+  margin-left: auto;
 }
+
+.message-received {
+  align-self: flex-start;
+  text-align: left;
+}
+
+.message-bubble {
+  display: inline-block;
+  max-width: 80%;
+  padding: 10px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
+.message-sent .message-bubble {
+  background-color: #dcf8c6; /* Light green bubble for sent messages */
+}
+
+.message-received .message-bubble {
+  background-color: #f1f0f0; /* Light grey bubble for received messages */
+}
+
 .message-sender {
   font-weight: bold;
+  margin-bottom: 2px;
 }
-.message-text {
-  margin-left: 10px;
+
+.chat-input {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
 }
+
 </style>
