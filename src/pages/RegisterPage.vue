@@ -118,6 +118,7 @@ import { defineComponent } from "vue";
 import { emailValidate, requiredValidate } from "../utils/validations";
 import { useLoginUserStore } from "../stores/loginUserStore.js";
 import { Notify } from "quasar";
+import debounce from 'lodash/debounce';
 export default defineComponent({
   name: "RegisterPage",
   data() {
@@ -252,7 +253,7 @@ export default defineComponent({
       this.usernameCaption.icon = null;
       this.usernameCaption.msg = null;
     },
-    usernameValidate: _.debounce(function() {
+    usernameValidate: debounce(function() {
       if (this.username) {
         this.$api
           .get("/auth/" + this.username)
