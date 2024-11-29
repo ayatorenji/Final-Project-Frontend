@@ -6,7 +6,7 @@
     <q-dialog v-model="showPostDetailDialog">
       <q-card style="max-width: 500px;">
         <q-card-section>
-          <q-img :src="selectedPost.image" style="max-width: 100%;" />
+          <q-img :src="selectedPost.postimg" style="max-width: 100%;" />
         </q-card-section>
 
         <q-card-section class="bg-green text-white">
@@ -25,11 +25,6 @@
           </div>
           <div class="text-body1">{{ selectedPost.description }}</div>
         </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn color="green" label="Chat" @click="openChat" />
-          <q-btn color="green" label="Location" @click="openLocation" />
-        </q-card-actions>
       </q-card>
     </q-dialog>
   </q-page>
@@ -40,14 +35,24 @@ import { onMounted, ref } from 'vue';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+const redIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
+  shadowSize: [41, 41],
+});
+
 export default {
   data() {
     return {
       map: null,
+      userLocation: null,
       showPostDetailDialog: false,
       selectedPost: {
         title: '',
-        image: '',
+        postimg: '',
         description: '',
         locationName: '',
         author: '',
@@ -60,7 +65,7 @@ export default {
       try {
         // Fetch all map locations from the backend
         const response = await this.$api.get('/map-location');
-        return response.data; // Assuming API returns an array of map locations
+        return response.data || [];
       } catch (error) {
         console.error('Error fetching map locations:', error);
         this.$q.notify({
@@ -71,38 +76,67 @@ export default {
       }
     },
     async initializeMap() {
-      this.map = L.map('map').setView([7.8804, 98.3923], 10);
+
+      if (this.map) {
+        // Prevent reinitializing the map
+        console.log('Map already initialized.');
+        return;
+      }
+      
+      // this.map = L.map('map').setView([7.8804, 98.3923], 10);
+      const defaultCenter = [7.8804, 98.3923];
+      this.map = L.map('map').setView(defaultCenter, 10);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(this.map);
 
+      // Get user's current location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log('User location:', latitude, longitude);
+            this.userLocation = { latitude, longitude };
+
+            // Update map view to user's location
+            this.map.setView([latitude, longitude], 13);
+
+            // Add a marker for the user's location
+            L.marker([latitude, longitude], { icon: redIcon })
+              .addTo(this.map)
+              .bindPopup('You are here!')
+          },
+          (error) => {
+            console.error('Error getting user location:', error);
+            this.$q.notify({
+              type: 'warning',
+              message: 'Unable to retrieve your location. Showing default location.',
+            });
+          }
+        );
+      }
+
       const locations = await this.fetchMapLocations();
 
       locations.forEach((location) => {
-        const marker = L.marker([location.latitude, location.longitude]).addTo(this.map);
+        if (location.adopted === 0) {
+          const marker = L.marker([location.latitude, location.longitude]).addTo(this.map);
 
-        // On marker click, show the post detail dialog
-        marker.on('click', () => {
-          this.selectedPost = {
-            title: location.title,
-            image: location.image,
-            description: location.postDescription,
-            locationName: location.locationName,
-            author: location.author,
-            authorImg: location.authorImg,
-          };
-          this.showPostDetailDialog = true;
-        });
+          // On marker click, show the post detail dialog
+          marker.on('click', () => {
+            this.selectedPost = {
+              title: location.title,
+              postimg: location.postImage,
+              description: location.postDescription,
+              locationName: location.description,
+              author: location.fullname,
+              authorImg: location.userImage,
+            };
+            this.showPostDetailDialog = true;
+          });
+        }
       });
-    },
-    openChat() {
-      // Handle the chat button click here
-      console.log('Chat clicked');
-    },
-    openLocation() {
-      // Handle the location button click here
-      console.log('Location clicked');
     },
   },
   mounted() {
