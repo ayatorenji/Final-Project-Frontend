@@ -2,32 +2,11 @@
   <q-layout view="lHh Lpr lFf">
     <q-page-container>
       <div class="q-pa-md">
-        <div class="row justify-between q-mb-md">
-          <q-btn color="green" label="Post" @click="handlePostButtonClick " />
-          <q-input
-            outlined
-            dense
-            placeholder="Search Bar"
-            class="col-8"
-            v-model="searchTerm"
-          />
-          <q-btn-dropdown color="green" label="Sort">
-            <q-list>
-              <q-item clickable v-close-popup @click="sortPosts('newest')">
-                <q-item-section>Newest</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="sortPosts('oldest')">
-                <q-item-section>Oldest</q-item-section>
-              </q-item>
-            </q-list>
-          </q-btn-dropdown>
-        </div>
-
-        <!-- Post Modal -->
-        <q-dialog v-model="showPostModal">
+        <!-- Post Model -->
+        <q-dialog v-model="showSubPostModel">
           <q-card style="width: 500px; max-height: 650px;">
             <q-card-section class="bg-green text-white">
-              <div class="text-h5 row items-center justify-between">Stray Animal Post
+              <div class="text-h5 row items-center justify-between">Update this animal life :D
                 <q-btn icon="close" flat round dense v-close-popup />
               </div>
             </q-card-section>
@@ -41,150 +20,155 @@
               </div>
               <input type="file" style="display: none" ref="fileInput" accept="image/*" @change="handleFileUpload" />
             </q-card-section>
-
             <q-card-section>
-              <q-input v-model="animalName" label="Animal's Name" outlined dense />
-            </q-card-section>
-            <q-card-section>
-              <q-input v-model="description" label="Description" outlined dense type="textarea" />
+              <q-input v-model="content" label="Description" outlined dense type="textarea" />
             </q-card-section>
 
             <q-card-actions align="right">
-              <q-btn color="green" label="Submit" @click="submitPost" />
+              <q-btn color="green" label="Submit" @click="submitSubPost" />
             </q-card-actions>
           </q-card>
         </q-dialog>
 
-        <div class="row q-col-gutter-md">
-          <div
-            class="col-12 col-sm-6 col-md-4"
-            v-for="post in filteredPosts"
-            :key="post.id"
-          >
-            <q-card @click="showDetails(post)" class="my-card">
-              <q-img :src="post.image" class="fixed-height-img"/>
-              <q-card-section class="bg-green text-white">
-                <div class="row no-wrap items-center justify-between">
-                  <div class="flex no-wrap items-center">
-                    <q-avatar>
-                      <img :src="post.user_img" />
-                    </q-avatar>
-                    <div class="q-ml-sm text-weight-bold">{{ post.author }}</div>
+        <!-- Main Post View -->
+        <div v-if="!selectedPost">
+          <div class="row justify-between q-mb-md">
+            <q-input outlined dense placeholder="Search Bar" class="col-10" v-model="searchTerm" />
+            <q-btn-dropdown color="green" label="Sort">
+              <q-list>
+                <q-item clickable v-close-popup @click="sortPosts('newest')">
+                  <q-item-section>Newest</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="sortPosts('oldest')">
+                  <q-item-section>Oldest</q-item-section>
+                </q-item>
+              </q-list>
+            </q-btn-dropdown>
+          </div>
+          
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-sm-6 col-md-4" v-for="post in filteredPosts" :key="post.id">
+              <q-card @click="showSubPosts(post)" class="my-card">
+                <q-img :src="post.image" class="fixed-height-img"/>
+                <q-card-section class="bg-green text-white">
+                  <div class="row no-wrap items-center justify-between">
+                    <div class="flex no-wrap items-center">
+                      <q-avatar><img :src="post.user_img" /></q-avatar>
+                      <div class="q-ml-sm text-weight-bold">{{ post.author }}</div>
+                    </div>
+                    <div>
+                      <q-btn icon="verified" flat round dense class="verified-icon"></q-btn>
+                    </div>
                   </div>
-                  <div>
-                    <q-btn icon="verified" flat round dense class="verified-icon"></q-btn>
-                  </div>
-                </div>
-              </q-card-section>
-              <q-card-section class="fixed-height-content">
-                <div class="text-h6">{{ post.title }}</div>
-                <div class="text-body1 multiline-truncate">{{ post.description }}</div>
-              </q-card-section>
-            </q-card>
+                </q-card-section>
+                <q-card-section class="fixed-height-content">
+                  <div class="text-h6">{{ post.title }}</div>
+                  <div class="text-body1 multiline-truncate">{{ post.description }}</div>
+                </q-card-section>
+              </q-card>
+            </div>
           </div>
         </div>
+        
+        <!-- Sub-Post View for Selected Post -->
+        <div v-else>
+          <div class="row justify-between q-mb-md">
+            <q-btn label="Back" icon="arrow_back" color="green" @click="selectedPost = null" />
+            <q-btn color="green" label="Post" @click="showSubPostModel = true" />
+            <q-input outlined dense placeholder="Search Bar" class="col-8" v-model="searchTerm" />
+            <q-btn-dropdown color="green" label="Sort">
+              <q-list>
+                <q-item clickable v-close-popup @click="sortPosts('newest')">
+                  <q-item-section>Newest</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="sortPosts('oldest')">
+                  <q-item-section>Oldest</q-item-section>
+                </q-item>
+              </q-list>
+            </q-btn-dropdown>
+          </div>
+          <div class="q-mt-lg text-center text-bold text-lg">Welcome and meet with {{ selectedPost.title }}!</div>
+          <div v-if="subPosts.length > 0" class="row q-col-gutter-md q-mt-lg">
+            <div
+              v-for="subPost in subPosts"
+              :key="subPost.id"
+              class="col-xs-12 col-sm-6 col-md-4"
+            >
+              <q-card class="q-mb-md">
+                <q-img :src="subPost.image" :alt="subPost.content" />
+                <q-card-section>
+                  <p>{{ subPost.content }}</p>
+                  <q-btn label="Like" icon="thumb_up" color="primary" @click="likeSubPost(subPost.id)" />
+                  <p>Likes: {{ subPost.likes }}</p>
+                  <div class="comment-area">
+                    <h4>Comments</h4>
+                    <p class="mockup-comment">[Mockup Comment Area]</p>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
 
-        <q-dialog v-model="detailsDialog" no-refocus no-focus>
-          <q-card class="my-card">
-            <q-card-section>
-              <q-img v-if="currentPost.image" :src="currentPost.image" />
-            </q-card-section>
-
-            <q-card-section class="bg-green text-white">
-              <div class="row items-center justify-between">
-                <div class="flex no-wrap items-center">
-                  <q-avatar>
-                    <img :src="currentPost.user_img" />
-                  </q-avatar>
-                  <div class="q-ml-sm text-h6">{{ currentPost.author }}</div>
-                </div>
-                <div v-if="currentPost.user_id == userId">
-                  <q-btn icon="edit" flat round dense @click="openEditDialog(currentPost)" />
-                  <q-btn icon="delete" flat round dense @click="confirmDelete(currentPost)" />
-                </div>
-              </div>
-            </q-card-section>
-
-            <q-card-section class="row items-center justify-between custom-section">
-              <div class="text-h6 col">{{ currentPost.title }}</div>
-              <q-btn v-if="currentPost.user_id == userId" class="mark-adopted" flat label="Mark Adopted" color="green" @click="markAsAdopted(currentPost)" />
-            </q-card-section>
-
-            <q-card-section class="custom-description">
-              <div>{{ currentPost.description }}</div>
-            </q-card-section>
-
-            <q-card-actions>
-              <q-btn color="green" label="Chat" />
-              <q-btn color="green" label="Location" />
-            </q-card-actions>
-          </q-card>
-        </q-dialog>
-
-        <!-- Edit Post Dialog -->
-        <q-dialog v-model="showEditDialog">
-          <q-card style="width: 500px">
-            <q-card-section class="bg-green text-white">
-              <div class="text-h6 row items-center justify-between">Edit Post
-                <q-btn icon="close" flat round dense v-close-popup />
-              </div>
-            </q-card-section>
-            <q-card-section>
-              <!-- Image preview and upload input -->
-              <div class="text-center q-mb-md">
-                <q-img v-if="editPostImage" :src="editPostImage" style="max-width: 300px; max-height: 300px;" />
-              </div>
-              <div class="text-center q-mb-md">
-                <q-btn color="green" label="Upload Image" @click="openEditFileInput" class="q-mt-md" />
-                <!-- Remove hidden attribute and use styles to hide the input -->
-                <input type="file" ref="editFileInput" accept="image/*" @change="handleEditFileUpload" style="display: none;" />
-              </div>
-              <q-input v-model="postToEdit.title" label="Animal's Name" />
-              <q-input v-model="postToEdit.description" label="Description" type="textarea" />
-            </q-card-section>
-            <q-card-actions align="right">
-              <q-btn label="Cancel" color="black" flat @click="showEditDialog = false" />
-              <q-btn label="Save" color="green" @click="editPost" />
-            </q-card-actions>
-          </q-card>
-        </q-dialog>
-
-        <!-- Delete Confirmation Dialog -->
-        <q-dialog v-model="showDeleteConfirmDialog">
+          <div v-else>
+            <p class="text-center q-mt-lg">No one mention about this animal here</p>
+          </div>
+        </div>
+        <!-- Sub-post modal -->
+        <!-- <q-dialog v-model="showModal">
           <q-card>
-            <q-card-section class="row items-center">
-              <q-avatar icon="warning" color="amber" text-color="white" />
-              <span class="q-ml-sm">Are you sure you want to delete this post?</span>
+            <q-img :src="selectedSubPost.image" :alt="selectedSubPost.content" />
+            <q-card-section>
+              <p>{{ selectedSubPost.content }}</p>
+              <q-btn @click="likeSubPost(selectedSubPost.id)" color="primary">Like</q-btn>
+              <p>Likes: {{ selectedSubPost.likes }}</p>
+            </q-card-section>
+            <q-card-section>
+              <h3>Comments</h3>
+              <div v-for="comment in selectedSubPost.comments" :key="comment.id">
+                <p>{{ comment.user }}: {{ comment.text }}</p>
+              </div>
+              <q-input v-model="newComment" placeholder="Write a comment..." outlined class="q-mb-md" />
+              <q-btn @click="addComment(selectedSubPost.id)" color="primary">Comment</q-btn>
             </q-card-section>
             <q-card-actions align="right">
-              <q-btn label="Cancel" color="black" flat @click="showDeleteConfirmDialog = false" />
-              <q-btn label="Yes, Delete" color="negative" @click="deletePost" />
+              <q-btn flat @click="showModal = false">Close</q-btn>
             </q-card-actions>
           </q-card>
-        </q-dialog>
-
-
+        </q-dialog> -->
       </div>
     </q-page-container>
   </q-layout>
 </template>
 
 <script>
-const BASE_IMAGE_URL = 'http://localhost:3000/assets/';
 import { useLoginUserStore } from "../stores/loginUserStore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Firebase imports
+import { storage } from "../firebaseConfig";
+
+const BASE_IMAGE_URL = 'https://firebasestorage.googleapis.com/v0/b/final-project-142d2.appspot.com/o/';
+
 export default {
   data() {
     return {
       currentPost: null,
       detailsDialog: false,
-      showPostModal: false,
+      showSubPostModel: false,
       postImage: null,
       animalName: '',
       description: '',
       searchTerm: '',
       posts: [],
+      adoptedPosts: [],
+      selectedPost: null,
+      subPosts: [],
+      newSubPostContent: '',
+      newSubPostImage: null,
+      showModal: false,
+      selectedSubPost: null,
+      newComment: "",
       showEditDialog: false,
       showDeleteConfirmDialog: false,
+      postImageFile: null,
       editPostImageFile: null,
       editPostImage: null,
       postToEdit: {},
@@ -214,8 +198,11 @@ export default {
       this.$refs.editFileInput.click();
     },
     handleFileUpload(event) {
-      this.postImageFile = event.target.files[0];
-      this.postImage = URL.createObjectURL(this.postImageFile);
+      const file = event.target.files[0];
+      if (file) {
+        this.postImageFile = file;
+        this.postImage = URL.createObjectURL(file);
+      }
     },
     handleEditFileUpload(event) {
       const file = event.target.files[0];
@@ -231,52 +218,87 @@ export default {
         this.posts.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       }
     },
-    showDetails(post) {
-      console.log('Post user ID:', post.user_id, 'Logged-in user ID:', this.userId);
-      this.currentPost = post;
-      this.detailsDialog = true;
+    showSubPosts(post) {
+      this.selectedPost = post;
+      this.fetchSubPosts(post.id);
     },
-    async submitPost() {
+    async fetchSubPosts(postId) {
+      try {
+        const response = await this.$api.get(`/post/${postId}/details`);
+        this.subPosts = response.data.subPosts;
+        this.selectedPost = response.data.post;
+      } catch (error) {
+        console.error("Error fetching sub-posts:", error);
+        this.$q.notify({ type: "negative", message: "Failed to fetch sub-posts." });
+      }
+    },
+    async likeSubPost(subPost) {
+      try {
+        await this.$api.put(`/post/sub-posts/${subPost.id}/like`);
+        subPost.likes += 1;
+      } catch (error) {
+        console.error("Error liking sub-post:", error);
+        this.$q.notify({ type: "negative", message: "Failed to like sub-post." });
+      }
+    },
+    async editSubPost(subPost) {
+      const updatedContent = prompt("Edit your comment:", subPost.content);
+      if (updatedContent && updatedContent !== subPost.content) {
+        try {
+          await this.$api.put(`/post/sub-posts/${subPost.id}/edit`, { content: updatedContent });
+          subPost.content = updatedContent;
+        } catch (error) {
+          console.error("Error editing sub-post:", error);
+          this.$q.notify({ type: "negative", message: "Failed to edit sub-post." });
+        }
+      }
+    },
+    async deleteSubPost(subPost) {
+      if (confirm("Are you sure you want to delete this comment?")) {
+        try {
+          await this.$api.delete(`/post/sub-posts/${subPost.id}`);
+          this.subPosts = this.subPosts.filter(s => s.id !== subPost.id);
+        } catch (error) {
+          console.error("Error deleting sub-post:", error);
+          this.$q.notify({ type: "negative", message: "Failed to delete sub-post." });
+        }
+      }
+    },
+    closeSubPosts() {
+      this.showSubPosts = false;
+      this.subPosts = [];
+    },
+
+    async submitSubPost() {
       try {
         if (!this.postImageFile) {
           throw new Error('Please upload an image.');
         }
 
-        // Set up FormData to send the file
-        const formData = new FormData();
-        formData.append('singlefile', this.postImageFile);
+        // Upload image to Firebase Storage
+        const fileRef = ref(storage, `subposts/${Date.now()}-${this.postImageFile.name}`);
+        await uploadBytes(fileRef, this.postImageFile);
+        const imageUrl = await getDownloadURL(fileRef);
 
-        // Post the image file to your backend
-        const fileResponse = await this.$api.post('/file/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          },
-        });
-
-        // Verify that the file upload response is as expected
-        if (!fileResponse.data.uploadFileName) {
-          throw new Error('File upload did not return a filename.');
-        }
-
-        const imageUrl = `${BASE_IMAGE_URL}${fileResponse.data.uploadFileName}`;
         // Now that the file is uploaded, submit the new post with the returned file name
-        const postResponse = await this.$api.post('/post/', {
-          title: this.animalName,
-          description: this.description,
-          image: imageUrl, // This should be the path to access the image
-          user_id: this.userId, // You need to have the user's id
+        const subpostResponse = await this.$api.post(`/post/${this.selectedPost.id}/sub-posts`, {
+          post_id: this.selectedPost.id,
+          user_id: this.userId, // Need to have the user's id
+          content: this.content,
+          image: imageUrl, // Firebase image URL
         });
+
+        const newSubPost = subpostResponse.data;
 
         this.$q.notify({
           type: 'positive',
           message: 'Post successfully.'
         });
-
         // Refresh the list after submitting
         await this.getData();
 
         // Reset the form and close the modal
-        this.closePostModal();
+        this.closePostModel();
       } catch (error) {
         console.error('Error:', error.response ? error.response.data : error.message);
         this.$q.notify({
@@ -285,24 +307,24 @@ export default {
         });
       }
     },
-    handlePostButtonClick() {
-      if (this.loginUserStore.userid) {
-        // If user is logged in, show the post modal
-        this.showPostModal = true;
-      } else {
-        // If user is not logged in, show notification to log in or sign up
-        this.$q.notify({
-          color: 'negative',
-          position: 'top',
-          message: 'You must be logged in to post. Please log in or',
-          actions: [
-            { label: 'Sign Up', color: 'white', handler: () => { this.$router.push('/register'); } }
-          ]
-        });
-      }
-    },
-    closePostModal() {
-      this.showPostModal = false;
+    // showSubPostModel() {
+    //   if (this.loginUserStore.userid) {
+    //     // If user is logged in, show the post modal
+    //     this.showSubPostModel = true;
+    //   } else {
+    //     // If user is not logged in, show notification to log in or sign up
+    //     this.$q.notify({
+    //       color: 'negative',
+    //       position: 'top',
+    //       message: 'You must be logged in to post. Please log in or',
+    //       actions: [
+    //         { label: 'Sign Up', color: 'white', handler: () => { this.$router.push('/register'); } }
+    //       ]
+    //     });
+    //   }
+    // },
+    closePostModel() {
+      this.showSubPostModel = false;
       this.postImageFile = null;
       this.postImage = '';
       this.animalName = '';
@@ -460,8 +482,8 @@ export default {
     },
 
   },
-  mounted() {
-    this.getData();
+  async mounted() {
+    await this.getData();
   },
 }
 </script>

@@ -97,7 +97,7 @@
                   <div class="q-ml-sm text-weight-bold">{{ post.author }}</div>
                 </div>
               </q-card-section>
-              <q-card-section>
+              <q-card-section class="fixed-height-content">
                 <div class="text-h6">{{ post.title }}</div>
                 <div class="text-body2" v-if="post.locationName" style="font-size: 0.85rem; color: gray;">
                   Found at: {{ post.locationName }}
@@ -897,13 +897,16 @@ export default {
   height: 250px;
 }
 
+.fixed-height-content {
+  height: 120px;
+}
+
 .multiline-truncate {
   display: -webkit-box;
+  -webkit-line-clamp: 2; /* Number of lines you want to display before truncating */
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2; /* Show only 2 lines */
-  overflow: hidden; /* Hide overflow */
-  text-overflow: ellipsis; /* Show ellipsis */
-  white-space: normal; /* Ensure text wraps */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #map {

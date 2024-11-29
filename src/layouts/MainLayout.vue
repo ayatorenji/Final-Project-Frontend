@@ -1,7 +1,7 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
-      <q-toolbar style="background-color: brown;">
+      <q-toolbar style="background-color: green;">
         <q-btn
           flat
           dense
@@ -69,7 +69,7 @@
             <img :src="getIcon" />
           </q-avatar>
           <div class="text-weight-bold" style="color: black;">{{ usernameDisplay }}</div>
-          <div class="text-weight-bold" style="color: cornflowerblue;"> <u style="font-size: 12px;">manage account <q-icon name="settings"/></u> </div>
+          <!-- <div class="text-weight-bold" style="color: cornflowerblue;"> <u style="font-size: 12px;">manage account <q-icon name="settings"/></u> </div> -->
         </div>
       </q-img>
     </q-drawer>
