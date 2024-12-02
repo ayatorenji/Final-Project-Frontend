@@ -30,7 +30,6 @@
           </q-card>
         </q-dialog>
 
-        <!-- Main Post View -->
         <div v-if="!selectedPost">
           <div class="row justify-between q-mb-md">
             <q-input outlined dense placeholder="Search Bar" class="col-10" v-model="searchTerm" />
@@ -88,53 +87,105 @@
             </q-btn-dropdown>
           </div>
           <div class="q-mt-lg text-center text-bold text-lg">Welcome and meet with {{ selectedPost.title }}!</div>
-          <div v-if="subPosts.length > 0" class="row q-col-gutter-md q-mt-lg">
+          <div v-if="filteredSubPosts.length > 0" class="row q-col-gutter-md q-mt-lg">
             <div
-              v-for="subPost in subPosts"
+              v-for="subPost in filteredSubPosts"
               :key="subPost.id"
-              class="col-xs-12 col-sm-6 col-md-4"
+              class="col-12 col-sm-6 col-md-4"
             >
-              <q-card class="q-mb-md">
-                <q-img :src="subPost.image" :alt="subPost.content" />
-                <q-card-section>
-                  <p>{{ subPost.content }}</p>
-                  <q-btn label="Like" icon="thumb_up" color="primary" @click="likeSubPost(subPost.id)" />
-                  <p>Likes: {{ subPost.likes }}</p>
-                  <div class="comment-area">
-                    <h4>Comments</h4>
-                    <p class="mockup-comment">[Mockup Comment Area]</p>
+              <q-card class="my-card">
+                <q-img :src="subPost.image" class="fixed-height-img" :alt="subPost.content" />
+                <q-card-section class="bg-green text-white">
+                  <div class="row no-wrap items-center">
+                    <q-avatar class="q-mr-sm">
+                      <img :src="subPost.userImage" alt="Author Image" />
+                    </q-avatar>
+                    <div>
+                      <div class="text-bold">{{ subPost.fullname }}</div>
+                    </div>
                   </div>
                 </q-card-section>
+                <q-card-section class="fixed-height-content">
+                  <div class="text-body1 multiline-truncate">{{ subPost.content }}</div>
+                </q-card-section>
+                <q-card-actions align="between">
+                  <q-btn flat icon="thumb_up" @click="likeSubPost(subPost.id)" class="text-primary">
+                    Like ({{ subPost.likes }})
+                  </q-btn>
+                  <q-btn flat icon="chat_bubble" class="text-primary">
+                    Comment
+                  </q-btn>
+                </q-card-actions>
               </q-card>
             </div>
           </div>
 
           <div v-else>
-            <p class="text-center q-mt-lg">No one mention about this animal here</p>
+            <p class="text-center justify-center q-mt-lg">No one mention about this animal now</p>
           </div>
+
+          <!-- Comment Popup -->
+          <q-dialog v-model="showCommentDialog">
+            <q-card style="max-width: 600px;">
+              <q-card-section>
+                <div class="row no-wrap items-center">
+                  <q-avatar size="50px" class="q-mr-md">
+                    <img :src="selectedSubPost.user_img" alt="Author Image" />
+                  </q-avatar>
+                  <div>
+                    <div class="text-bold">{{ selectedSubPost.author }}</div>
+                    <div class="text-caption">{{ formattedDate }}</div>
+                  </div>
+                </div>
+              </q-card-section>
+
+              <q-card-section>
+                <q-btn
+                  flat
+                  label="Like"
+                  color="primary"
+                  icon="thumb_up"
+                  @click="likeSubPost(selectedSubPost.id)"
+                />
+              </q-card-section>
+
+              <q-card-section>
+                <div v-if="comments.length > 0">
+                  <div v-for="comment in comments" :key="comment.id" class="q-mb-md">
+                    <q-avatar size="40px" class="q-mr-md">
+                      <img :src="comment.user_img" alt="Comment Author" />
+                    </q-avatar>
+                    <div>
+                      <div class="text-bold">{{ comment.author }}</div>
+                      <div class="text-caption">{{ comment.content }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else>
+                  <p>No comments now</p>
+                </div>
+              </q-card-section>
+
+              <q-card-section>
+                <q-input
+                  v-model="newComment"
+                  outlined
+                  dense
+                  placeholder="Type your comment"
+                >
+                  <template v-slot:append>
+                    <q-btn
+                      flat
+                      dense
+                      icon="send"
+                      @click="submitComment"
+                    />
+                  </template>
+                </q-input>
+              </q-card-section>
+            </q-card>
+          </q-dialog>
         </div>
-        <!-- Sub-post modal -->
-        <!-- <q-dialog v-model="showModal">
-          <q-card>
-            <q-img :src="selectedSubPost.image" :alt="selectedSubPost.content" />
-            <q-card-section>
-              <p>{{ selectedSubPost.content }}</p>
-              <q-btn @click="likeSubPost(selectedSubPost.id)" color="primary">Like</q-btn>
-              <p>Likes: {{ selectedSubPost.likes }}</p>
-            </q-card-section>
-            <q-card-section>
-              <h3>Comments</h3>
-              <div v-for="comment in selectedSubPost.comments" :key="comment.id">
-                <p>{{ comment.user }}: {{ comment.text }}</p>
-              </div>
-              <q-input v-model="newComment" placeholder="Write a comment..." outlined class="q-mb-md" />
-              <q-btn @click="addComment(selectedSubPost.id)" color="primary">Comment</q-btn>
-            </q-card-section>
-            <q-card-actions align="right">
-              <q-btn flat @click="showModal = false">Close</q-btn>
-            </q-card-actions>
-          </q-card>
-        </q-dialog> -->
       </div>
     </q-page-container>
   </q-layout>
@@ -164,7 +215,9 @@ export default {
       newSubPostContent: '',
       newSubPostImage: null,
       showModal: false,
+      showCommentDialog: false,
       selectedSubPost: null,
+      comments: [],
       newComment: "",
       showEditDialog: false,
       showDeleteConfirmDialog: false,
@@ -186,8 +239,20 @@ export default {
         post.author.toLowerCase().includes(searchTermLower));
       })
     },
+    filteredSubPosts() {
+      const searchTermLower = this.searchTerm.toLowerCase();
+      return this.subPosts.filter(subPost => {
+        return (
+          subPost.content.toLowerCase().includes(searchTermLower) ||
+          subPost.fullname.toLowerCase().includes(searchTermLower)
+        );
+      });
+    },
     userId() {
       return this.loginUserStore.userid;
+    },
+    formattedDate() {
+      return new Date(this.selectedSubPost.created_at).toLocaleString();
     },
   },
   methods: {
@@ -214,8 +279,10 @@ export default {
     sortPosts(order) {
       if (order === 'newest') {
         this.posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        this.subPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       } else if (order === 'oldest') {
         this.posts.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        this.subPosts.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       }
     },
     showSubPosts(post) {
@@ -225,17 +292,29 @@ export default {
     async fetchSubPosts(postId) {
       try {
         const response = await this.$api.get(`/post/${postId}/details`);
-        this.subPosts = response.data.subPosts;
+        this.subPosts = response.data.subPosts
+          .map(subPost => ({
+            ...subPost,
+            likes: subPost.likes || 0  // Ensure likes are initialized properly
+          }))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         this.selectedPost = response.data.post;
+        this.$forceUpdate(); 
       } catch (error) {
         console.error("Error fetching sub-posts:", error);
         this.$q.notify({ type: "negative", message: "Failed to fetch sub-posts." });
       }
     },
-    async likeSubPost(subPost) {
+    async likeSubPost(subPostId) {
+      console.log("Liking post with ID:", subPostId);
       try {
-        await this.$api.put(`/post/sub-posts/${subPost.id}/like`);
-        subPost.likes += 1;
+        const response = await this.$api.put(`/post/sub-posts/${subPostId}/like`);
+        const likedSubPost = this.subPosts.find(subPost => subPost.id === subPostId);
+        if (likedSubPost) {
+            likedSubPost.likes = response.data.likes;
+        }
+        this.$forceUpdate();
+        console.log("Like successful, server response:", response);
       } catch (error) {
         console.error("Error liking sub-post:", error);
         this.$q.notify({ type: "negative", message: "Failed to like sub-post." });
@@ -345,6 +424,7 @@ export default {
             image: post.image && !post.image.startsWith('http') ? `${BASE_IMAGE_URL}${post.image}` : post.image,
             user_id: post.user_id,
             user_img: post.user_img && !post.user_img.startsWith('http') ? `${BASE_IMAGE_URL}${post.user_img}` : post.user_img,
+            likes: post.likes,
           }))
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by latest
       } catch (error) {
@@ -480,7 +560,32 @@ export default {
       console.log('Marking as adopted:', post.id);
       // You would likely make an API call here to update the post status
     },
-
+    async fetchComments(subPostId) {
+      try {
+        const response = await this.$api.get(`/api/comments/${subPostId}`);
+        this.comments = response.data;
+      } catch (error) {
+        console.error("Error fetching comments:", error);
+      }
+    },
+    async openComments(subPost) {
+      this.selectedSubPost = subPost;
+      this.showCommentDialog = true;
+      await this.fetchComments(subPost.id);
+    },
+    async submitComment() {
+      try {
+        const response = await this.$api.post(`/api/comments`, {
+          sub_post_id: this.selectedSubPost.id,
+          user_id: this.userId,
+          content: this.newComment,
+        });
+        this.comments.unshift(response.data);
+        this.newComment = "";
+      } catch (error) {
+        console.error("Error submitting comment:", error);
+      }
+    },
   },
   async mounted() {
     await this.getData();
