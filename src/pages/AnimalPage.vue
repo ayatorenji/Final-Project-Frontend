@@ -106,13 +106,13 @@
                   </div>
                 </q-card-section>
                 <q-card-section class="fixed-height-content">
-                  <div class="text-body1 multiline-truncate">{{ subPost.content }}</div>
+                  <div class="text-body1 multiline-truncate text-content">{{ subPost.content }}</div>
                 </q-card-section>
                 <q-card-actions align="between">
-                  <q-btn flat icon="thumb_up" @click="likeSubPost(subPost.id)" class="text-primary">
+                  <q-btn flat icon="thumb_up" @click="likeSubPost(subPost.id)" class="text-green">
                     Like ({{ subPost.likes }})
                   </q-btn>
-                  <q-btn flat icon="chat_bubble" class="text-primary">
+                  <q-btn flat icon="chat_bubble" class="text-green" @click="openComments(subPost)">
                     Comment
                   </q-btn>
                 </q-card-actions>
@@ -125,63 +125,67 @@
           </div>
 
           <!-- Comment Popup -->
-          <q-dialog v-model="showCommentDialog">
-            <q-card style="max-width: 600px;">
-              <q-card-section>
-                <div class="row no-wrap items-center">
-                  <q-avatar size="50px" class="q-mr-md">
-                    <img :src="selectedSubPost.user_img" alt="Author Image" />
-                  </q-avatar>
-                  <div>
-                    <div class="text-bold">{{ selectedSubPost.author }}</div>
-                    <div class="text-caption">{{ formattedDate }}</div>
-                  </div>
-                </div>
-              </q-card-section>
-
-              <q-card-section>
-                <q-btn
-                  flat
-                  label="Like"
-                  color="primary"
-                  icon="thumb_up"
-                  @click="likeSubPost(selectedSubPost.id)"
-                />
-              </q-card-section>
-
-              <q-card-section>
-                <div v-if="comments.length > 0">
-                  <div v-for="comment in comments" :key="comment.id" class="q-mb-md">
-                    <q-avatar size="40px" class="q-mr-md">
-                      <img :src="comment.user_img" alt="Comment Author" />
+          <q-dialog v-if="selectedSubPost" v-model="showCommentDialog">
+            <q-card class="comment-popup-card">
+              <q-card-section class="author-section">
+                  <!-- Author Information -->
+                  <div class="row no-wrap items-center q-mb-md author-section">
+                    <q-avatar size="50px" class="q-mr-md">
+                      <img :src="selectedSubPost.userImage" alt="Author Image" />
                     </q-avatar>
                     <div>
-                      <div class="text-bold">{{ comment.author }}</div>
-                      <div class="text-caption">{{ comment.content }}</div>
+                      <div class="text-bold">{{ selectedSubPost.fullname }}</div>
+                      <div class="text-caption">{{ formattedDate }}</div>
                     </div>
                   </div>
-                </div>
-                <div v-else>
-                  <p>No comments now</p>
-                </div>
-              </q-card-section>
+                  <div class="text-caption text-content">{{ selectedSubPost.content }}</div>
 
-              <q-card-section>
-                <q-input
-                  v-model="newComment"
-                  outlined
-                  dense
-                  placeholder="Type your comment"
-                >
-                  <template v-slot:append>
-                    <q-btn
-                      flat
-                      dense
-                      icon="send"
-                      @click="submitComment"
-                    />
-                  </template>
-                </q-input>
+                  <!-- Sub-Post Image -->
+                  <div class="image-section">
+                    <q-img :src="selectedSubPost.image" class="subpost-image" :alt="selectedSubPost.content" />
+                  </div>
+
+                  <!-- Like Button -->
+                  <q-btn
+                    flat
+                    label="Like"
+                    color="green"
+                    icon="thumb_up"
+                    @click="likeSubPost(selectedSubPost.id)"
+                    class="like-button q-mb-md"
+                  />
+
+                  <!-- Comment List -->
+                  <div class="comments-section">
+                    <div v-if="comments.length > 0">
+                      <div v-for="comment in comments" :key="comment.id" class="row no-wrap items-center q-mb-md">
+                        <q-avatar size="40px" class="q-mr-md">
+                          <img :src="comment.user_img" alt="Comment Author" />
+                        </q-avatar>
+                        <div class="comment-details">
+                          <div class="text-bold">{{ comment.author }}</div>
+                          <div class="text-caption">{{ comment.ment }}</div>
+                          <div class="timestamp"> {{ new Date(comment.created_at).toLocaleString() }} </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else>
+                      <p>No comments yet</p>
+                    </div>
+                  </div>
+
+                  <!-- Add Comment Input -->
+                  <q-input
+                    v-model="newComment"
+                    outlined
+                    dense
+                    placeholder="Type your comment"
+                    class="q-mt-md-mb comment-input"
+                  >
+                    <template v-slot:append>
+                      <q-btn flat dense icon="send" @click="submitComment" />
+                    </template>
+                  </q-input>
               </q-card-section>
             </q-card>
           </q-dialog>
@@ -386,22 +390,6 @@ export default {
         });
       }
     },
-    // showSubPostModel() {
-    //   if (this.loginUserStore.userid) {
-    //     // If user is logged in, show the post modal
-    //     this.showSubPostModel = true;
-    //   } else {
-    //     // If user is not logged in, show notification to log in or sign up
-    //     this.$q.notify({
-    //       color: 'negative',
-    //       position: 'top',
-    //       message: 'You must be logged in to post. Please log in or',
-    //       actions: [
-    //         { label: 'Sign Up', color: 'white', handler: () => { this.$router.push('/register'); } }
-    //       ]
-    //     });
-    //   }
-    // },
     closePostModel() {
       this.showSubPostModel = false;
       this.postImageFile = null;
@@ -562,30 +550,56 @@ export default {
     },
     async fetchComments(subPostId) {
       try {
-        const response = await this.$api.get(`/api/comments/${subPostId}`);
-        this.comments = response.data;
+        const response = await this.$api.get(`/comments/${subPostId}`);
+        this.comments = response.data.map(comment => ({
+            ...comment,
+            image: this.selectedSubPost.image
+        }));
       } catch (error) {
         console.error("Error fetching comments:", error);
       }
+      console.log("Selected SubPost Image URL:", this.selectedSubPost.image);
+
     },
     async openComments(subPost) {
+      console.log("Opening comments for SubPost:", subPost);
       this.selectedSubPost = subPost;
+      if (!this.selectedSubPost) {
+        console.error("No subPost selected.");
+        return;
+      }
+      console.log("Selected SubPost:", this.selectedSubPost);
+      console.log("Selected SubPost Image URL:", this.selectedSubPost.image);
       this.showCommentDialog = true;
+      this.$forceUpdate(); // Ensure Vue re-renders
       await this.fetchComments(subPost.id);
     },
+
     async submitComment() {
+      if (!this.newComment.trim()) {
+        console.error("Comment cannot be empty");
+        this.$q.notify({ type: "negative", message: "Comment cannot be empty" });
+        return;
+      }
       try {
-        const response = await this.$api.post(`/api/comments`, {
+        const response = await this.$api.post(`/comments/${this.selectedSubPost.id}/comment`, {
           sub_post_id: this.selectedSubPost.id,
           user_id: this.userId,
-          content: this.newComment,
+          ment: this.newComment,
         });
-        this.comments.unshift(response.data);
+        const newComment = {
+          ...response.data,
+          user_img: this.loginUserStore.img,
+          author: this.loginUserStore.fullname
+        };
+        this.comments.unshift(newComment);
         this.newComment = "";
+        this.$forceUpdate();
       } catch (error) {
         console.error("Error submitting comment:", error);
       }
     },
+
   },
   async mounted() {
     await this.getData();
@@ -622,15 +636,78 @@ export default {
 }
 
 .custom-section {
-  margin-bottom: 0; /* Remove the bottom margin from the title section */
+  margin-bottom: 0;
 }
 
 .custom-description {
-  padding-top: 0; /* Remove the top padding from the description section */
-  margin-top: 0; /* Remove the top margin to bring it closer to the title */
+  padding-top: 0; 
+  margin-top: 0; 
 }
 
-::v-deep .verified-icon .q-icon {
+.text-content {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  text-align: left;
+}
+
+.comment-popup-card {
+  display: flex;
+  flex-direction: row;
+  width: 1000px;
+  height: 500px;
+}
+
+.image-section {
+  flex-shrink: 0;
+}
+
+.author-section, .image-section, .like-section {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.author-info {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.subpost-image {
+  max-width: 100%;
+  height: auto;
+}
+
+.comment-section {
+  flex-grow: 1;
+  overflow-y: auto;
+  max-height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+.comments-section {
+  flex-grow: 1;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.comment-details{
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.comment-input {
+  margin-bottom: 10px;
+}
+
+.like-button {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+:deep(.verified-icon .q-icon) {
   font-size: 35px;
 }
 </style>
