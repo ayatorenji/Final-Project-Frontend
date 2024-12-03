@@ -21,7 +21,7 @@
               <input type="file" style="display: none" ref="fileInput" accept="image/*" @change="handleFileUpload" />
             </q-card-section>
             <q-card-section>
-              <q-input v-model="content" label="Description" outlined dense type="textarea" />
+              <q-input v-model="content" label="Description" outlined dense type="textarea" @input="updateDescription" />
             </q-card-section>
 
             <q-card-actions align="right">
@@ -73,7 +73,7 @@
         <div v-else>
           <div class="row justify-between q-mb-md">
             <q-btn label="Back" icon="arrow_back" color="green" @click="selectedPost = null" />
-            <q-btn color="green" label="Post" @click="showSubPostModel = true" />
+            <q-btn color="green" label="Post" @click="requireLogin(() => (showSubPostModel = true))" />
             <q-input outlined dense placeholder="Search Bar" class="col-8" v-model="searchTerm" />
             <q-btn-dropdown color="green" label="Sort">
               <q-list>
@@ -109,10 +109,10 @@
                   <div class="text-body1 multiline-truncate text-content">{{ subPost.content }}</div>
                 </q-card-section>
                 <q-card-actions align="between">
-                  <q-btn flat icon="thumb_up" @click="likeSubPost(subPost.id)" class="text-green">
+                  <q-btn flat icon="thumb_up"  @click="requireLogin(() => likeSubPost(subPost.id))" class="text-green">
                     Like ({{ subPost.likes }})
                   </q-btn>
-                  <q-btn flat icon="chat_bubble" class="text-green" @click="openComments(subPost)">
+                  <q-btn flat icon="chat_bubble" class="text-green" @click="requireLogin(() => openComments(subPost))">
                     Comment
                   </q-btn>
                 </q-card-actions>
@@ -121,7 +121,7 @@
           </div>
 
           <div v-else>
-            <p class="text-center justify-center q-mt-lg">No one mention about this animal now</p>
+            <p class="text-center justify-center q-mt-lg">No one mentioned this animal now</p>
           </div>
 
           <!-- Comment Popup -->
@@ -212,6 +212,7 @@ export default {
       animalName: '',
       description: '',
       searchTerm: '',
+      content: '',
       posts: [],
       adoptedPosts: [],
       selectedPost: null,
@@ -260,6 +261,16 @@ export default {
     },
   },
   methods: {
+    requireLogin(action) {
+      if (!this.userId) {
+        this.$q.notify({ type: 'negative', message: 'Please log in to perform this action.' });
+        return false;
+      }
+      if (typeof action === 'function') {
+        action();
+      }
+      return true;
+    },
     openFileInput() {
       this.$refs.fileInput.click()
     },
@@ -310,6 +321,7 @@ export default {
       }
     },
     async likeSubPost(subPostId) {
+      if (!this.requireLogin()) return;
       console.log("Liking post with ID:", subPostId);
       try {
         const response = await this.$api.put(`/post/sub-posts/${subPostId}/like`);
@@ -352,10 +364,18 @@ export default {
       this.subPosts = [];
     },
 
+    updateDescription(value) {
+      this.content = value;
+    },
+
     async submitSubPost() {
       try {
         if (!this.postImageFile) {
           throw new Error('Please upload an image.');
+        }
+        if (!this.content.trim()) {
+            this.$q.notify({ type: 'negative', message: 'Please add a description.' });
+            return;
         }
 
         // Upload image to Firebase Storage
@@ -378,7 +398,7 @@ export default {
           message: 'Post successfully.'
         });
         // Refresh the list after submitting
-        await this.getData();
+        await this.fetchSubPosts(this.selectedPost.id);
 
         // Reset the form and close the modal
         this.closePostModel();
@@ -392,6 +412,7 @@ export default {
     },
     closePostModel() {
       this.showSubPostModel = false;
+      this.content = "";
       this.postImageFile = null;
       this.postImage = '';
       this.animalName = '';
@@ -562,6 +583,7 @@ export default {
 
     },
     async openComments(subPost) {
+      if (!this.requireLogin()) return;
       console.log("Opening comments for SubPost:", subPost);
       this.selectedSubPost = subPost;
       if (!this.selectedSubPost) {
@@ -576,6 +598,7 @@ export default {
     },
 
     async submitComment() {
+      if (!this.requireLogin()) return;
       if (!this.newComment.trim()) {
         console.error("Comment cannot be empty");
         this.$q.notify({ type: "negative", message: "Comment cannot be empty" });
