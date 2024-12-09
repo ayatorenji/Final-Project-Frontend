@@ -44,6 +44,15 @@ const redIcon = L.icon({
   shadowSize: [41, 41],
 });
 
+const blueIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
+  shadowSize: [41, 41],
+});
+
 export default {
   data() {
     return {
@@ -121,7 +130,7 @@ export default {
 
       locations.forEach((location) => {
         if (location.adopted === 0) {
-          const marker = L.marker([location.latitude, location.longitude]).addTo(this.map);
+          const marker = L.marker([location.latitude, location.longitude], { icon: blueIcon }).addTo(this.map);
 
           // On marker click, show the post detail dialog
           marker.on('click', () => {
