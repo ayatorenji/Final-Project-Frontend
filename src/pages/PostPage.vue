@@ -311,6 +311,15 @@ import { storage } from "../firebaseConfig";
 
 const BASE_IMAGE_URL = 'https://firebasestorage.googleapis.com/v0/b/final-project-142d2.appspot.com/o/';
 
+const blueIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
+  shadowSize: [41, 41],
+});
+
 export default {
   data() {
     return {
@@ -431,7 +440,7 @@ export default {
             if (this.marker) {
               this.marker.addTo(this.map).setLatLng([latitude, longitude]);
             } else{
-              this.marker = L.marker([latitude, longitude]).addTo(this.map);
+              this.marker = L.marker([latitude, longitude], { icon: blueIcon }).addTo(this.map);
             }
           },
           (error) => {
@@ -452,7 +461,7 @@ export default {
         if (this.marker) {
           this.marker.setLatLng([lat, lng]);
         } else {
-          this.marker = L.marker([lat, lng]).addTo(this.map);
+          this.marker = L.marker([lat, lng], { icon: blueIcon }).addTo(this.map);
         }
       });
     },
@@ -484,7 +493,7 @@ export default {
 
         // Place the marker at the post's location or default location
         if (!this.postToEdit.marker) {
-          this.postToEdit.marker = L.marker([latitude, longitude]).addTo(this.postToEdit.map);
+          this.postToEdit.marker = L.marker([latitude, longitude], { icon: blueIcon }).addTo(this.postToEdit.map);
         } else {
           this.postToEdit.marker.addTo(this.postToEdit.map).setLatLng([latitude, longitude]);
         }
@@ -498,7 +507,7 @@ export default {
           if (this.postToEdit.marker) {
             this.postToEdit.marker.setLatLng([lat, lng]);
           } else {
-            this.postToEdit.marker = L.marker([lat, lng]).addTo(this.postToEdit.map);
+            this.postToEdit.marker = L.marker([lat, lng], { icon: blueIcon }).addTo(this.postToEdit.map);
           }
         });
         
@@ -549,7 +558,7 @@ export default {
 
         // Add a marker to the map at the fetched coordinates
         if (latitude && longitude) {
-          this.postMarker = L.marker([latitude, longitude]).addTo(this.postMap);
+          this.postMarker = L.marker([latitude, longitude], { icon: blueIcon }).addTo(this.postMap);
         }
       } catch (error) {
         console.error('Error fetching post location:', error);
