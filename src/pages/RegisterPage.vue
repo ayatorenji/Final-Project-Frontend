@@ -198,7 +198,7 @@ export default defineComponent({
         email: this.email,
         username: this.username,
         password: this.password,
-        img: avatarUrl || "default-avatar.png", // Fallback to default avatar if no upload
+        img: avatarUrl || "https://cdn-icons-png.flaticon.com/512/6596/6596121.png", // Fallback to default avatar if no upload
       }
       if (!this.usernameCaption.showClass) {
         Notify.create({
@@ -215,7 +215,7 @@ export default defineComponent({
             this.storeLogUser.username = response.data.username;
             this.storeLogUser.accessToken = response.data.accessToken;
             this.storeLogUser.userType = 'user'
-            this.storeLogUser.img  = avatarUrl || "default-avatar.png";
+            this.storeLogUser.img  = avatarUrl || "https://cdn-icons-png.flaticon.com/512/6596/6596121.png";
 
             Notify.create({
               color: 'positive',
