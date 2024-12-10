@@ -198,7 +198,7 @@ export default defineComponent({
         email: this.email,
         username: this.username,
         password: this.password,
-        img: avatarUrl || "default-avatar.png", // Fallback to default avatar if no upload
+        img: avatarUrl || "https://cdn-icons-png.flaticon.com/512/6596/6596121.png", // Fallback to default avatar if no upload
       }
       if (!this.usernameCaption.showClass) {
         Notify.create({
