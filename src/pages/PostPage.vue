@@ -363,7 +363,8 @@ export default {
         const searchTermLower = this.searchTerm.toLowerCase()
         return post.adopted === 0 && // Add this line to check for non-adopted animals
         (post.title.toLowerCase().includes(searchTermLower) ||
-        post.description.toLowerCase().includes(searchTermLower) ||
+        post.description.toLowerCase().includes(searchTermLower) || 
+        post.locationName.toLowerCase().includes(searchTermLower) ||
         post.author.toLowerCase().includes(searchTermLower));
       })
     },
